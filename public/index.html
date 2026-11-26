@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Gold Desk XAUUSD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Pupitre de trading : bandeau prix, graphique TradingView + carte signal, puis calendrier et news. */
+:root{
+  --bg:#eceff3; --panel:#ffffff; --ink:#131a25; --muted:#5b6777; --line:#d6dbe3;
+  --gold:#9c6f12; --gold-soft:#f3e7c9; --up:#0d8358; --down:#c23a3a; --warn:#b3640a;
+  --up-soft:#dcf2e8; --down-soft:#f8dfdf; --warn-soft:#f7e6cf;
+  --display:"Bricolage Grotesque","IBM Plex Sans",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{color-scheme:dark;
+    --bg:#0e131b; --panel:#161d28; --ink:#e7ebf1; --muted:#93a0b2; --line:#273142;
+    --gold:#e2b24c; --gold-soft:#3a2f17; --up:#3fcf8f; --down:#f06b6d; --warn:#f0a94a;
+    --up-soft:#143326; --down-soft:#3b1d20; --warn-soft:#3a2a14;}
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+.wrap{max-width:1360px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance}
+h1{font-size:20px;letter-spacing:-.01em} h2{font-size:16px}
+.muted{color:var(--muted)} .small{font-size:12.5px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.top{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:10px}
+.ingot{width:26px;height:16px;background:var(--gold);clip-path:polygon(18% 0,82% 0,100% 100%,0 100%);flex:none}
+.quote{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.price{font-family:var(--mono);font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.chg{font-family:var(--mono);font-size:14px;font-weight:500}
+.up{color:var(--up)} .down{color:var(--down)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12.5px;background:var(--panel)}
+.chip.kz{border-color:var(--gold);background:var(--gold-soft)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none}
+.dot.live{background:var(--up)} .dot.err{background:var(--down)} .dot.wait{background:var(--warn)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{font:inherit;font-family:var(--mono);font-size:13px;padding:6px 12px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.main{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(310px,1fr);gap:14px;align-items:start}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.lower{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media (max-width:900px){.main,.lower{grid-template-columns:minmax(0,1fr)}}
+.tv{height:520px} .tv.short{height:480px}
+#levels{height:260px;position:relative}
+@media (max-width:600px){.tv{height:400px}.price{font-size:26px}}
+.tradingview-widget-container{height:100%;width:100%}
+.tradingview-widget-container__widget{height:calc(100% - 22px);width:100%}
+.tradingview-widget-copyright{font-size:11.5px;line-height:22px;text-align:right}
+.tradingview-widget-copyright a{color:var(--muted)}
+.msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;color:var(--muted);z-index:3}
+.zones{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-top:12px}
+.zone{border-left:3px solid var(--line);padding:4px 10px;font-size:13px}
+.zone.d{border-color:var(--up)} .zone.s{border-color:var(--down)}
+.verdict{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.pill{font-family:var(--display);font-weight:700;font-size:22px;padding:6px 14px;border-radius:8px}
+.pill.buy{background:var(--up-soft);color:var(--up)} .pill.sell{background:var(--down-soft);color:var(--down)}
+.pill.wait{background:var(--warn-soft);color:var(--warn)} .pill.none{background:var(--bg);color:var(--muted)}
+.bars{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;margin:14px 0 4px;font-size:13px}
+.bar{height:8px;border-radius:4px;background:var(--bg);overflow:hidden}
+.bar span{display:block;height:100%;width:0;border-radius:4px;transition:width .3s}
+.bar.l span{background:var(--up)} .bar.s span{background:var(--down)}
+@media (prefers-reduced-motion:reduce){.bar span{transition:none}}
+.plan{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+.cell{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.cell b{display:block;font-family:var(--mono);font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.cell span{font-size:12px;color:var(--muted)}
+.cell.sl b{color:var(--down)} .cell.tp b{color:var(--up)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px}
+.risk{border-top:1px solid var(--line);padding-top:10px}
+input{font:inherit;font-family:var(--mono);padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+#riskUsd{width:90px} #deskCode{width:150px}
+.factors{list-style:none;margin:12px 0 0;padding:0}
+.factors li{display:grid;grid-template-columns:54px 1fr;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
+.tag{font-family:var(--mono);font-size:11.5px;font-weight:600;text-align:center;border-radius:5px;padding:2px 0;align-self:start;margin-top:1px}
+.tag.l{background:var(--up-soft);color:var(--up)} .tag.s{background:var(--down-soft);color:var(--down)} .tag.n{background:var(--bg);color:var(--muted)}
+.factors small{display:block;color:var(--muted);font-size:12.5px}
+.btn{font:inherit;font-weight:500;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.btn:disabled{opacity:.5;cursor:default}
+#aiOut{white-space:pre-wrap;font-size:14px;margin-top:10px;max-width:65ch}
+footer{font-size:12px;color:var(--muted);padding:2px 2px 10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><span class="ingot" aria-hidden="true"></span><h1>Gold Desk <span class="muted">XAUUSD</span></h1></div>
+    <div class="quote"><span class="price" id="price">—</span><span class="chg" id="chg"></span></div>
+    <div class="chips">
+      <span class="chip" id="session">Session —</span>
+      <span class="chip" id="nextEv" hidden></span>
+      <span class="chip"><span class="dot wait" id="feedDot"></span><span id="feedTxt">Chargement des prix…</span></span>
+      <div class="seg" role="group" aria-label="Unité de temps">
+        <button type="button" data-tf="5m" aria-pressed="false">M5</button>
+        <button type="button" data-tf="15m" aria-pressed="true">M15</button>
+        <button type="button" data-tf="1h" aria-pressed="false">H1</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="col">
+      <section class="panel" aria-label="Graphique TradingView"><div class="tv" id="tvChart"></div></section>
+      <section class="panel" aria-label="Niveaux du signal">
+        <div class="panel-head"><h2>Niveaux du signal <span id="tfLabel" class="muted">M15</span></h2><span class="small muted">Zones OB / FVG, stop et objectifs calculés par le moteur</span></div>
+        <div id="levels"><div class="msg" id="levelsMsg">Chargement des bougies…</div></div>
+        <div class="zones" id="zones"></div>
+      </section>
+    </div>
+
+    <section class="panel" aria-label="Signal">
+      <div class="panel-head"><h2>Signal</h2><span class="small muted" id="sigTime"></span></div>
+      <div class="verdict"><span class="pill none" id="pill">EN ATTENTE</span><span class="small muted" id="pillNote">Les prix ne sont pas encore chargés.</span></div>
+      <div class="bars">
+        <span>Achat</span><div class="bar l"><span id="barL"></span></div><span class="num" id="scoreL">—</span>
+        <span>Vente</span><div class="bar s"><span id="barS"></span></div><span class="num" id="scoreS">—</span>
+      </div>
+      <div class="plan" id="plan" hidden>
+        <div class="cell"><span>Entrée</span><b id="pEntry">—</b></div>
+        <div class="cell sl"><span id="pSlLbl">Stop</span><b id="pSl">—</b></div>
+        <div class="cell tp"><span id="pTp1Lbl">TP1</span><b id="pTp1">—</b></div>
+        <div class="cell tp"><span id="pTp2Lbl">TP2</span><b id="pTp2">—</b></div>
+      </div>
+      <div class="row risk" id="riskRow" hidden>
+        <label for="riskUsd">Risque par trade (USD)</label>
+        <input id="riskUsd" type="number" min="1" step="10" value="100" inputmode="decimal">
+        <span>Taille : <b class="num" id="lots">—</b> lot</span>
+      </div>
+      <ul class="factors" id="factors"></ul>
+      <div style="margin-top:14px">
+        <div class="row">
+          <button class="btn" id="aiBtn" type="button">Demander une lecture à Claude</button>
+          <span id="codeBox" hidden><label for="deskCode" class="small muted">Code d'accès </label><input id="deskCode" type="password" autocomplete="off"></span>
+        </div>
+        <div id="aiOut" aria-live="polite"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="lower">
+    <section class="panel" aria-label="Calendrier économique"><div class="panel-head"><h2>Calendrier économique</h2></div><div class="tv short" id="tvCal"></div></section>
+    <section class="panel" aria-label="News"><div class="panel-head"><h2>News du moment</h2></div><div class="tv short" id="tvNews"></div></section>
+  </div>
+
+  <footer>Graphique, calendrier et news : widgets TradingView. Signaux calculés par règles sur les bougies de biquote.io, indicatifs et sans garantie de résultat ; ce n'est pas un conseil en investissement.</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="/engine.js"></script>
+<script>
+"use strict";
+(function(){
+const $=id=>document.getElementById(id);
+const TFS={"5m":{htf:"1h",ltfL:"M5",htfL:"H1",tv:"5"},"15m":{htf:"4h",ltfL:"M15",htfL:"H4",tv:"15"},"1h":{htf:"1d",ltfL:"H1",htfL:"D1",tv:"60"}};
+const TV_SYMBOL="OANDA:XAUUSD";
+const state={tf:"15m",ltf:[],htf:[],ltfAt:null,htfAt:0,events:[],an:null,fit:true,seq:0};
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+if(TFS[store.get("gd.tf")])state.tf=store.get("gd.tf");
+if(+store.get("gd.risk")>0)$("riskUsd").value=store.get("gd.risk");
+const dark=()=>window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches;
+const f2=x=>x.toLocaleString("fr-CH",{minimumFractionDigits:2,maximumFractionDigits:2});
+const hm=ms=>new Date(ms).toLocaleTimeString("fr-CH",{hour:"2-digit",minute:"2-digit"});
+function el(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+
+/* ---------- Widgets TradingView (format iframe officiel) ---------- */
+function tvWidget(hostId,name,config,linkText){const host=$(hostId);host.textContent="";
+  const box=el("div","tradingview-widget-container");box.appendChild(el("div","tradingview-widget-container__widget"));
+  const c=el("div","tradingview-widget-copyright");const a=el("a",null,linkText);a.href="https://fr.tradingview.com/";a.rel="noopener nofollow";a.target="_blank";c.appendChild(a);box.appendChild(c);
+  const s=document.createElement("script");s.type="text/javascript";s.async=true;s.src="https://s3.tradingview.com/external-embedding/embed-widget-"+name+".js";s.text=JSON.stringify(config);box.appendChild(s);host.appendChild(box)}
+function tvChart(){tvWidget("tvChart","advanced-chart",{autosize:true,symbol:TV_SYMBOL,interval:TFS[state.tf].tv,timezone:"Europe/Zurich",theme:dark()?"dark":"light",style:"1",locale:"fr",allow_symbol_change:false,hide_side_toolbar:false,calendar:false,studies:["MAExp@tv-basicstudies","RSI@tv-basicstudies"],support_host:"https://www.tradingview.com"},"Graphique XAUUSD par TradingView")}
+function tvStatic(){const t=dark()?"dark":"light";
+  tvWidget("tvCal","events",{colorTheme:t,isTransparent:true,width:"100%",height:"100%",locale:"fr",importanceFilter:"0,1",countryFilter:"us,eu,gb,ch,cn,jp"},"Calendrier économique par TradingView");
+  tvWidget("tvNews","timeline",{feedMode:"symbol",symbol:TV_SYMBOL,colorTheme:t,isTransparent:true,displayMode:"regular",width:"100%",height:"100%",locale:"fr"},"Actualités par TradingView")}
+
+/* ---------- Mini graphique des niveaux ---------- */
+let chart=null,sC=null,sE20=null,sE50=null,lines=[];
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function chartTheme(){if(!chart)return;
+  chart.applyOptions({layout:{background:{color:"transparent"},textColor:css("--muted"),fontFamily:"IBM Plex Mono, ui-monospace, monospace",fontSize:11},grid:{vertLines:{color:css("--line")+"55"},horzLines:{color:css("--line")+"55"}},rightPriceScale:{borderColor:css("--line")},timeScale:{borderColor:css("--line"),timeVisible:true,secondsVisible:false}});
+  sC.applyOptions({upColor:css("--up"),downColor:css("--down"),wickUpColor:css("--up"),wickDownColor:css("--down"),borderVisible:false});sE20.applyOptions({color:css("--gold")});sE50.applyOptions({color:css("--muted")})}
+function initChart(){if(!window.LightweightCharts)return;
+  chart=LightweightCharts.createChart($("levels"),{autoSize:true,crosshair:{mode:0}});
+  sC=chart.addCandlestickSeries({priceFormat:{type:"price",precision:2,minMove:0.01}});
+  sE20=chart.addLineSeries({lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+  sE50=chart.addLineSeries({lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});chartTheme()}
+const tt=ms=>Math.floor(ms/1000)-new Date(ms).getTimezoneOffset()*60;
+function drawChart(){if(!chart)return;const c=state.ltf,an=state.an;
+  sC.setData(c.map(x=>({time:tt(x.t),open:x.o,high:x.h,low:x.l,close:x.c})));
+  sE20.setData(an?c.map((x,i)=>an.e20[i]==null?null:{time:tt(x.t),value:an.e20[i]}).filter(Boolean):[]);
+  sE50.setData(an?c.map((x,i)=>an.e50[i]==null?null:{time:tt(x.t),value:an.e50[i]}).filter(Boolean):[]);
+  if(state.fit&&c.length){chart.timeScale().setVisibleLogicalRange({from:Math.max(0,c.length-90),to:c.length+5});state.fit=false}
+  lines.forEach(l=>{try{sC.removePriceLine(l)}catch(e){}});lines=[];
+  if(!an){sC.setMarkers([]);return}
+  const add=(price,color,title,style)=>lines.push(sC.createPriceLine({price,color,lineWidth:1,lineStyle:style,axisLabelVisible:true,title}));
+  an.demand.forEach(z=>{add(z.hi,css("--up"),z.kind+" achat",2);add(z.lo,css("--up"),"",2)});
+  an.supply.forEach(z=>{add(z.lo,css("--down"),z.kind+" vente",2);add(z.hi,css("--down"),"",2)});
+  if(an.plan){add(an.plan.sl,css("--down"),"Stop",0);add(an.plan.tp1,css("--up"),"TP1",0);add(an.plan.tp2,css("--up"),"TP2",0)}
+  sC.setMarkers(an.sweep?[{time:tt(an.sweep.t),position:an.sweep.dir===1?"belowBar":"aboveBar",color:an.sweep.dir===1?css("--up"):css("--down"),shape:an.sweep.dir===1?"arrowUp":"arrowDown",text:"Sweep"}]:[])}
+
+/* ---------- Rendu ---------- */
+function recompute(){const cfg=TFS[state.tf];
+  state.an=state.ltf.length?analyze(state.ltf,state.htf,Date.now(),state.events.filter(e=>e.exact),{ltf:cfg.ltfL,htf:cfg.htfL}):null;
+  renderQuote();renderSignal();drawChart();$("levelsMsg").hidden=state.ltf.length>0}
+function renderQuote(){const c=state.ltf;if(!c.length){$("price").textContent="—";$("chg").textContent="";return}
+  const last=c[c.length-1];$("price").textContent=f2(last.c);let ref=null;for(let i=c.length-1;i>=0;i--){if(c[i].t<=last.t-864e5){ref=c[i];break}}
+  const ch=$("chg");if(ref){const d=last.c-ref.c,pc=d/ref.c*100;ch.textContent=(d>=0?"+":"−")+f2(Math.abs(d))+"  ("+(d>=0?"+":"−")+Math.abs(pc).toFixed(2)+" %) sur 24 h";ch.className="chg "+(d>=0?"up":"down")}else ch.textContent=""}
+function renderSession(){const s=sessionAt(Date.now()),e=$("session");e.textContent=s.name;e.className="chip"+(s.kz?" kz":"");
+  const n=state.events.filter(x=>Date.parse(x.t)>Date.now())[0],c=$("nextEv");if(!n){c.hidden=true;return}
+  const m=Math.round((Date.parse(n.t)-Date.now())/60000);c.hidden=false;c.textContent="Prochaine annonce US : "+n.title+" dans "+(m<60?m+" min":m<1440?Math.floor(m/60)+" h":Math.floor(m/1440)+" j")}
+function renderSignal(){const an=state.an,pill=$("pill"),fl=$("factors"),zs=$("zones");fl.textContent="";zs.textContent="";
+  if(!an){pill.className="pill none";pill.textContent="EN ATTENTE";$("pillNote").textContent=state.ltf.length?"Historique trop court pour analyser.":"Les prix ne sont pas encore chargés.";
+    $("barL").style.width="0";$("barS").style.width="0";$("scoreL").textContent="—";$("scoreS").textContent="—";$("plan").hidden=true;$("riskRow").hidden=true;$("sigTime").textContent="";return}
+  pill.className="pill "+an.verdict;pill.textContent=an.verdict==="buy"?(an.strong?"ACHAT FORT":"ACHAT"):an.verdict==="sell"?(an.strong?"VENTE FORTE":"VENTE"):"ATTENDRE";$("pillNote").textContent=an.note;
+  $("barL").style.width=(an.L/an.max*100).toFixed(0)+"%";$("barS").style.width=(an.S/an.max*100).toFixed(0)+"%";
+  $("scoreL").textContent=an.L.toFixed(1)+" / "+an.max.toFixed(1);$("scoreS").textContent=an.S.toFixed(1)+" / "+an.max.toFixed(1);
+  $("sigTime").textContent=state.ltfAt?"Calculé sur les prix de "+hm(state.ltfAt):"";
+  const pl=an.plan;$("plan").hidden=!pl;$("riskRow").hidden=!pl;
+  if(pl){$("pEntry").textContent=f2(pl.entry);$("pSl").textContent=f2(pl.sl);$("pTp1").textContent=f2(pl.tp1);$("pTp2").textContent=f2(pl.tp2);
+    $("pSlLbl").textContent="Stop · "+f2(pl.dist)+" $";$("pTp1Lbl").textContent="TP1 · R 1,5";$("pTp2Lbl").textContent="TP2 · R "+pl.rr2.toFixed(1).replace(".",",")+(pl.tp2Liq?" · liquidité":"");renderLots()}
+  an.factors.forEach(f=>{const li=el("li"),d=f.both?"both":f.d;
+    li.appendChild(el("span","tag "+(d===1||d==="both"?"l":d===-1?"s":"n"),d===1?"ACHAT":d===-1?"VENTE":d==="both"?"ACTIVE":"NEUTRE"));
+    const b=el("div");b.appendChild(el("span",null,f.label));b.appendChild(el("small",null,f.detail));li.appendChild(b);fl.appendChild(li)});
+  const zl=an.demand.map(z=>({z,c:"d",t:"Demande"})).concat(an.supply.map(z=>({z,c:"s",t:"Offre"})));
+  if(!zl.length)zs.appendChild(el("div","small muted","Aucune zone OB / FVG non comblée à proximité."));
+  zl.forEach(o=>{const d=el("div","zone "+o.c);d.appendChild(el("div",null,o.t+" · "+o.z.kind));d.appendChild(el("div","num small muted",f2(o.z.lo)+" – "+f2(o.z.hi)));zs.appendChild(d)})}
+function renderLots(){const pl=state.an&&state.an.plan,v=+$("riskUsd").value;$("lots").textContent=pl&&v>0?(v/(pl.dist*100)).toFixed(2).replace(".",","):"—"}
+$("riskUsd").addEventListener("input",()=>{renderLots();store.set("gd.risk",$("riskUsd").value)});
+
+/* ---------- Données ---------- */
+function feed(kind,txt){$("feedDot").className="dot "+kind;$("feedTxt").textContent=txt}
+async function getJson(url,opts){const r=await fetch(url,opts);const j=await r.json().catch(()=>null);if(!r.ok)throw new Error(j&&j.error?j.error:"Erreur "+r.status);return j}
+async function loadPrices(force){if(document.hidden&&!force)return;const seq=state.seq,tf=state.tf,cfg=TFS[tf];
+  try{const needH=force||Date.now()-state.htfAt>3e5;
+    const [l,h]=await Promise.all([getJson("/api/candles?tf="+tf),needH?getJson("/api/candles?tf="+cfg.htf).catch(()=>null):null]);
+    if(seq!==state.seq)return;state.ltf=l.candles;state.ltfAt=l.fetchedAt||Date.now();if(h){state.htf=h.candles;state.htfAt=Date.now()}
+    feed("live","Prix "+hm(state.ltfAt));recompute()}
+  catch(e){if(seq!==state.seq)return;feed("err",state.ltfAt?"Flux interrompu · dernier prix "+hm(state.ltfAt):"Prix indisponibles");if(!state.ltf.length)$("levelsMsg").textContent=e.message+" Nouvel essai automatique."}}
+async function loadCalendar(){try{const j=await getJson("/api/calendar");state.events=j.events||[];renderSession();if(state.ltf.length)recompute()}catch(e){}}
+function setTf(tf){state.tf=tf;state.seq++;state.ltf=[];state.htf=[];state.ltfAt=null;state.htfAt=0;state.fit=true;store.set("gd.tf",tf);
+  $("tfLabel").textContent=TFS[tf].ltfL;document.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tf===tf?"true":"false"));
+  $("levelsMsg").textContent="Chargement des bougies…";feed("wait","Chargement "+TFS[tf].ltfL+"…");recompute();tvChart();loadPrices(true)}
+document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.tf!==state.tf)setTf(b.dataset.tf)}));
+
+/* ---------- Lecture Claude ---------- */
+let busy=false;
+$("aiBtn").addEventListener("click",async()=>{if(busy)return;const an=state.an,out=$("aiOut");if(!an){out.textContent="Attends que les prix soient chargés.";return}
+  const code=$("deskCode").value||store.get("gd.code")||"";if(!code){$("codeBox").hidden=false;$("deskCode").focus();out.textContent="Saisis ton code d'accès (variable DESK_CODE dans Vercel), puis clique à nouveau.";return}
+  busy=true;$("aiBtn").disabled=true;out.textContent="Lecture en cours…";const cfg=TFS[state.tf];
+  const data={instrument:"XAUUSD",unite:cfg.ltfL,fond:cfg.htfL,prix:+an.price.toFixed(2),atr:+an.atr.toFixed(2),verdict:an.verdict,score_achat:an.L,score_vente:an.S,score_max:an.max,
+    facteurs:an.factors.map(f=>({nom:f.label,sens:f.both?"actif":f.d===1?"achat":f.d===-1?"vente":"neutre",detail:f.detail})),
+    plan:an.plan?{sens:an.plan.dir===1?"achat":"vente",entree:+an.plan.entry.toFixed(2),stop:+an.plan.sl.toFixed(2),tp1:+an.plan.tp1.toFixed(2),tp2:+an.plan.tp2.toFixed(2)}:null,
+    zones_demande:an.demand.map(z=>[+z.lo.toFixed(2),+z.hi.toFixed(2)]),zones_offre:an.supply.map(z=>[+z.lo.toFixed(2),+z.hi.toFixed(2)]),
+    prochaines_annonces:state.events.filter(e=>Date.parse(e.t)>Date.now()).slice(0,5).map(e=>({quand:e.t,titre:e.title}))};
+  try{const j=await getJson("/api/analyse",{method:"POST",headers:{"content-type":"application/json","x-desk-code":code},body:JSON.stringify({state:data})});out.textContent=j.text;store.set("gd.code",code);$("codeBox").hidden=true}
+  catch(e){out.textContent=e.message;if(/code/i.test(e.message)){store.set("gd.code","");$("codeBox").hidden=false}}
+  busy=false;$("aiBtn").disabled=false});
+
+/* ---------- Démarrage ---------- */
+initChart();if(!chart)$("levelsMsg").textContent="La bibliothèque de graphique n'a pas pu être chargée. Le signal reste calculé.";
+tvStatic();renderSession();setTf(state.tf);loadCalendar();
+setInterval(loadPrices,30000);setInterval(loadCalendar,3e5);setInterval(renderSession,60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadPrices(true)});
+if(window.matchMedia)matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{chartTheme();drawChart();tvChart();tvStatic()});
+})();
+</script>
+</body>
+</html>

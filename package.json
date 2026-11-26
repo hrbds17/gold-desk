@@ -1,0 +1,7 @@
+{
+  "name": "gold-desk",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Dashboard XAUUSD : widgets TradingView, signaux ICT + indicateurs, lecture Claude",
+  "scripts": { "test": "node test/run.js" }
+}
