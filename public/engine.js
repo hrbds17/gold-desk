@@ -25,7 +25,8 @@ function findObs(c,A,from){const out=[];for(let i=Math.max(1,from);i<c.length-3;
 function nyHour(ms){try{const p=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hour:"numeric",minute:"numeric",hourCycle:"h23"}).formatToParts(new Date(ms));const h=+p.find(x=>x.type==="hour").value,m=+p.find(x=>x.type==="minute").value;return h+m/60}catch(e){return (new Date(ms).getUTCHours()+19)%24}}
 function sessionAt(ms){const h=nyHour(ms);if(h>=2&&h<5)return{kz:true,name:"Kill zone Londres"};if(h>=7&&h<10)return{kz:true,name:"Kill zone New York"};if(h>=20||h<0.01)return{kz:false,name:"Session Asie"};if(h>=5&&h<7)return{kz:false,name:"Session Londres"};if(h>=10&&h<17)return{kz:false,name:"Session New York"};return{kz:false,name:"Hors session"}}
 
-function analyze(ltf,htf,now,events,labels){
+function analyze(ltf,htf,now,events,labels,opts){
+  opts=opts||{};
   if(ltf.length<60)return null;
   const cl=ltf.map(x=>x.c),n=ltf.length,p=cl[n-1];
   const e20=ema(cl,20),e50=ema(cl,50),R=rsi(cl,14),M=macd(cl),A=atr(ltf,14),a=A[n-1]||p*0.002;
@@ -66,6 +67,7 @@ function analyze(ltf,htf,now,events,labels){
   // garde-fou annonces
   let guard=null;(events||[]).forEach(ev=>{if(ev.impact!=="high")return;const t=Date.parse(ev.t);if(!isFinite(t))return;const d=(t-now)/60000;if(d<=30&&d>=-15&&!guard)guard=ev});
   if(guard&&verdict!=="wait"){verdict="wait";note="Annonce à fort impact toute proche : "+guard.title+"."}
+  if(opts.trendOnly&&bias!==0&&((verdict==="buy"&&bias===-1)||(verdict==="sell"&&bias===1))){verdict="wait";note="Signal contre la tendance de fond, ignor\u00e9."}
   // plan actif + scenarios conditionnels
   function mk(d,entry,cands){
     const ok=cands.filter(x=>d===1?(x<entry&&entry-x<=3*a):(x>entry&&x-entry<=3*a));
@@ -87,9 +89,34 @@ function analyze(ltf,htf,now,events,labels){
     const z=d===1?demand[0]:supply[0];let entry,cands,basis;
     if(z){entry=d===1?Math.min(z.hi,p):Math.max(z.lo,p);cands=[d===1?z.lo:z.hi];basis=(z.kind==="OB"?"Order block ":"FVG ")+z.lo.toFixed(2)+" \u2013 "+z.hi.toFixed(2)}
     else{const s=(d===1?sw.lo.filter(x=>x.p<p):sw.hi.filter(x=>x.p>p)).slice(-1)[0];if(!s)return null;entry=s.p;cands=[];basis=(d===1?"Creux ":"Sommet ")+s.p.toFixed(2)+" (liquidit\u00e9)"}
-    const o=mk(d,entry,cands);o.basis=basis;o.atMarket=Math.abs(entry-p)<1e-9;return o;
+    const o=mk(d,entry,cands);o.basis=basis;o.kind=z?z.kind:"LIQ";o.withTrend=bias===0?null:d===bias;o.atMarket=Math.abs(entry-p)<1e-9;return o;
   }
-  const scenarios=[scen(1),scen(-1)].filter(Boolean);
-  return{price:p,atr:a,e20,e50,rsi:r,factors:F,L,S,max,verdict,strong,note,plan,scenarios,demand,supply,sweep:sweepRecent,session:ses,guard};
+  const scenarios=[scen(1),scen(-1)].filter(Boolean).filter(x=>!(opts.trendOnly&&x.withTrend===false));
+  if(plan){plan.kind="SIGNAL";plan.withTrend=bias===0?null:plan.dir===bias}
+  return{bias,price:p,atr:a,e20,e50,rsi:r,factors:F,L,S,max,verdict,strong,note,plan,scenarios,demand,supply,sweep:sweepRecent,session:ses,guard};
 }
-if(typeof module!=="undefined"){module.exports={analyze,ema,rsi,atr,macd,swings};}
+/* ---- Suivi d'un trade bougie par bougie (journal et backtest). Si stop et objectif tombent dans la meme bougie, on compte le stop. ---- */
+function stepTrade(tr,c){
+  if(tr.state==="pending"){if(tr.dir===1?c.l<=tr.entry:c.h>=tr.entry){tr.state="open";tr.filledT=c.t}else return tr}
+  if(tr.state==="open"){
+    const risk=Math.abs(tr.entry-tr.sl);
+    if(tr.dir===1?c.l<=tr.sl:c.h>=tr.sl){tr.state="done";tr.result="sl";tr.exit=tr.sl;tr.exitT=c.t;tr.r=-1;return tr}
+    if(tr.dir===1?c.h>=tr.tp1:c.l<=tr.tp1)tr.tp1Hit=true;
+    if(tr.dir===1?c.h>=tr.tp2:c.l<=tr.tp2){tr.state="done";tr.result="tp2";tr.exit=tr.tp2;tr.exitT=c.t;tr.r=risk>0?Math.abs(tr.tp2-tr.entry)/risk:0}
+  }
+  return tr}
+/* ---- Backtest : rejoue l'historique bougie par bougie, sans regarder le futur (bougies de fond terminees uniquement). ---- */
+function backtest(ltf,htf,labels,opts){
+  const trades=[];if(ltf.length<100)return trades;
+  const ls=ltf[1].t-ltf[0].t,hs=htf.length>1?htf[1].t-htf[0].t:0;let pos=null,hi=0;
+  for(let i=80;i<ltf.length;i++){const c=ltf[i];
+    if(pos){stepTrade(pos,c);if(pos.state==="done"){trades.push(pos);pos=null}else if(pos.state==="pending")pos=null;else continue}
+    const tEnd=c.t+ls;while(hi<htf.length&&htf[hi].t+hs<=tEnd)hi++;
+    const an=analyze(ltf.slice(Math.max(0,i-299),i+1),htf.slice(Math.max(0,hi-300),hi),tEnd,[],labels,opts);if(!an)continue;
+    const src=an.plan||an.scenarios.slice().sort((x,y)=>Math.abs(x.entry-an.price)-Math.abs(y.entry-an.price))[0];if(!src)continue;
+    pos={dir:src.dir,entry:src.entry,sl:src.sl,tp1:src.tp1,tp2:src.tp2,kind:src.kind,withTrend:src.withTrend,t:c.t,state:an.plan?"open":"pending",tp1Hit:false};
+  }
+  return trades}
+function summarize(trades){const n=trades.length,w=trades.filter(t=>t.r>0).length,sum=trades.reduce((a,t)=>a+t.r,0);
+  return{n,wins:w,winRate:n?w/n:0,sumR:sum,avgR:n?sum/n:0,tp1Rate:n?trades.filter(t=>t.tp1Hit).length/n:0}}
+if(typeof module!=="undefined"){module.exports={analyze,ema,rsi,atr,macd,swings,stepTrade,backtest,summarize};}

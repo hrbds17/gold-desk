@@ -1,5 +1,5 @@
 const assert = require("assert");
-const { analyze } = require("../public/engine.js");
+const { analyze, stepTrade, backtest, summarize } = require("../public/engine.js");
 const candles = require("../api/candles.js");
 const calendar = require("../api/calendar.js");
 const analyse = require("../api/analyse.js");
@@ -12,7 +12,7 @@ function res() { return { code: 0, body: null, headers: {}, status(c) { this.cod
 
 (async () => {
   // moteur : plans cohérents, tailles d'historique réelles (192 M15, 180 H4)
-  const seen = {}; let nScen = 0;
+  const seen = {}; let nScen = 0, btInfo = null;
   for (let s = 1; s <= 300; s++) {
     const a = analyze(gen(192, 9e5, s * 7919), gen(180, 144e5, s * 104729), Date.now(), [], { ltf: "M15", htf: "H4" });
     seen[a.verdict] = (seen[a.verdict] || 0) + 1;
@@ -30,6 +30,28 @@ function res() { return { code: 0, body: null, headers: {}, status(c) { this.cod
     assert.strictEqual(a.verdict, "wait");
   }
   assert.strictEqual(analyze(gen(30, 9e5, 5), [], Date.now(), [], { ltf: "M15", htf: "H4" }), null);
+
+  // tendance uniquement : aucun scénario ni signal contre la tendance de fond
+  for (let s = 1; s <= 200; s++) {
+    const a = analyze(gen(192, 9e5, s * 7919), gen(180, 144e5, s * 104729), Date.now(), [], { ltf: "M15", htf: "H4" }, { trendOnly: true });
+    if (a.bias !== 0) { for (const p of a.scenarios) assert.strictEqual(p.dir, a.bias); if (a.plan) assert.strictEqual(a.plan.dir, a.bias); }
+  }
+  // suivi d'un trade
+  let tr = { dir: 1, entry: 100, sl: 98, tp1: 103, tp2: 106, state: "pending", tp1Hit: false };
+  stepTrade(tr, { t: 1, o: 102, h: 103, l: 101, c: 102 }); assert.strictEqual(tr.state, "pending");
+  stepTrade(tr, { t: 2, o: 101, h: 101, l: 99.5, c: 100.5 }); assert.strictEqual(tr.state, "open");
+  stepTrade(tr, { t: 3, o: 100.5, h: 103.5, l: 100, c: 103 }); assert.strictEqual(tr.tp1Hit, true); assert.strictEqual(tr.state, "open");
+  stepTrade(tr, { t: 4, o: 103, h: 106.2, l: 102, c: 106 }); assert.strictEqual(tr.result, "tp2"); assert.strictEqual(tr.r, 3);
+  tr = { dir: -1, entry: 100, sl: 102, tp1: 97, tp2: 94, state: "open", tp1Hit: false };
+  stepTrade(tr, { t: 1, o: 100, h: 102.5, l: 93, c: 95 }); assert.strictEqual(tr.result, "sl"); assert.strictEqual(tr.r, -1);
+  // backtest : tourne, trades cohérents, pas de regard vers le futur (résultat identique si on ajoute des bougies après)
+  const L = gen(600, 9e5, 4242), H = gen(200, 144e5, 777).map((c, i) => Object.assign(c, { t: L[0].t - 60 * 144e5 + i * 144e5 }));
+  const bt = backtest(L, H, { ltf: "M15", htf: "H4" }, {}); assert(bt.length > 5, "trop peu de trades simulés");
+  for (const x of bt) { assert(x.state === "done" && (x.r === -1 || x.r > 0)); assert(x.exitT >= x.t); }
+  const btShort = backtest(L.slice(0, 400), H, { ltf: "M15", htf: "H4" }, {});
+  assert.deepStrictEqual(bt.filter((x) => x.exitT < L[395].t).map((x) => [x.t, x.r]), btShort.filter((x) => x.exitT < L[395].t).map((x) => [x.t, x.r]));
+  const sm = summarize(bt); assert.strictEqual(sm.n, bt.length); assert(sm.winRate >= 0 && sm.winRate <= 1);
+  btInfo = sm;
 
   // /api/candles : normalisation (barre ouverte en premier, tri ascendant)
   const realFetch = global.fetch;
@@ -97,5 +119,5 @@ function res() { return { code: 0, body: null, headers: {}, status(c) { this.cod
   global.fetch = async (url) => String(url).startsWith("https://t.me/") ? { ok: true, text: async () => page } : { ok: true, status: 200, json: async () => ({ content: [{ type: "text", text: "pas du json" }] }) };
   r = res(); await impact({ method: "POST", headers: { "x-desk-code": "abc123" }, body: {} }, r); assert.strictEqual(r.code, 502);
   global.fetch = realFetch;
-  console.log("OK", seen, "scénarios:", nScen);
+  console.log("OK", seen, "scénarios:", nScen, "backtest synthétique:", btInfo.n, "trades");
 })().catch((e) => { console.error("ECHEC", e); process.exit(1); });

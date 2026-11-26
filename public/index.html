@@ -93,7 +93,7 @@ body.lock{overflow:hidden}
 .entryTag{position:absolute;transform:translateY(-50%);font-family:var(--display);font-weight:700;font-size:13px;padding:3px 10px;border-radius:0 6px 6px 0;color:#fff;white-space:nowrap}
 .entryTag.b{background:var(--up)} .entryTag.s{background:var(--down)}
 @media (prefers-color-scheme: dark){.entryTag{color:#0e131b}}
-.idea{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;cursor:pointer}
+.idea{display:block;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;cursor:pointer}
 .idea[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
 .idea .hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .idea .dir{font-family:var(--display);font-weight:700;font-size:17px;padding:3px 12px;border-radius:6px}
@@ -109,6 +109,22 @@ body.lock{overflow:hidden}
 .idea .lv b{font-family:var(--mono);font-size:14.5px;font-weight:600;font-variant-numeric:tabular-nums}
 .idea .lv i{display:block;font-style:normal;font-family:var(--mono);font-size:12px;color:var(--muted)}
 .idea .ft{margin-top:8px;font-size:12.5px;color:var(--muted)}
+.take{margin-top:10px;display:flex;justify-content:flex-end}
+.btn.go{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.tr{border-top:1px solid var(--line);padding:9px 0;font-size:13.5px}
+.tr:first-of-type{border-top:0}
+.tr .l1{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tr .l2{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+.tr .ac{margin-left:auto;display:flex;gap:6px}
+.res{font-family:var(--mono);font-weight:600}
+.res.pos{color:var(--up)} .res.neg{color:var(--down)}
+h3{font-family:var(--display);font-size:13.5px;margin:12px 0 4px;color:var(--muted)}
+.bt{width:100%;border-collapse:collapse;font-size:13.5px}
+.bt th,.bt td{text-align:right;padding:6px 8px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.bt th:nth-child(-n+3),.bt td:nth-child(-n+3){text-align:left}
+.bt th{font-weight:500;color:var(--muted);font-size:12.5px;border-top:0}
+.bt td.num{font-family:var(--mono)}
+.btwrap{overflow-x:auto}
 .chk{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer}
 @media (max-width:600px){.tv.big{height:70vh;min-height:380px}.price{font-size:26px}}
 .tradingview-widget-container{height:100%;width:100%}
@@ -177,7 +193,8 @@ footer{font-size:12px;color:var(--muted);padding:2px 2px 10px}
   <div class="main">
     <div class="col">
       <section class="panel o1" aria-label="Niveaux du signal">
-        <div class="panel-head"><h2>Niveaux du signal <span id="tfLabel" class="muted">M15</span></h2><label class="chk" for="showZones"><input type="checkbox" id="showZones"> Afficher les zones OB / FVG</label></div>
+        <div class="panel-head"><h2>Niveaux du signal <span id="tfLabel" class="muted">M15</span></h2><label class="chk" for="trendOnly"><input type="checkbox" id="trendOnly"> Sens de la tendance uniquement</label>
+          <label class="chk" for="showZones"><input type="checkbox" id="showZones"> Afficher les zones OB / FVG</label></div>
         <div class="small muted" id="levelsTxt" style="margin-bottom:8px"></div>
         <div id="levels"><div id="bands"></div><div class="msg" id="levelsMsg">Chargement des bougies…</div></div>
         <div class="zones" id="zones" hidden></div>
@@ -188,6 +205,7 @@ footer{font-size:12px;color:var(--muted);padding:2px 2px 10px}
       </section>
     </div>
 
+    <div class="col">
     <section class="panel o2" aria-label="Signal">
       <div class="panel-head"><h2>Signal</h2><span class="small muted" id="sigTime"></span></div>
       <div class="verdict"><span class="pill none" id="pill">EN ATTENTE</span><span class="small muted" id="pillNote">Les prix ne sont pas encore chargés.</span></div>
@@ -208,6 +226,11 @@ footer{font-size:12px;color:var(--muted);padding:2px 2px 10px}
         <div id="aiOut" aria-live="polite"></div>
       </div>
     </section>
+    <section class="panel o2" aria-label="Mes trades">
+      <div class="panel-head"><h2>Mes trades</h2><span class="small muted" id="trSum"></span></div>
+      <div id="trList"><div class="small muted">Aucun trade pour l'instant. Clique sur « Je prends ce trade » sur une carte pour le suivre ici.</div></div>
+    </section>
+    </div>
   </div>
 
   <div class="lower">
@@ -215,6 +238,12 @@ footer{font-size:12px;color:var(--muted);padding:2px 2px 10px}
     <section class="panel" aria-label="News"><div class="panel-head"><h2>News du moment</h2></div><div class="tv short" id="tvNews"></div></section>
     <section class="panel" aria-label="Canal Telegram"><div class="panel-head"><h2>Canal Telegram</h2><span class="small muted" id="tgName"></span></div><div id="tgBar" hidden><button class="btn sm" id="tgBtn" type="button">Analyser l'impact sur l'or avec Claude</button><span id="tgCodeBox" hidden><label for="tgCode" class="small muted">Code d'accès </label><input id="tgCode" type="password" autocomplete="off"></span><span class="muted" id="tgSum"></span></div><div id="tg"><div class="small muted">Chargement du canal…</div></div></section>
   </div>
+
+  <section class="panel" aria-label="Backtest">
+    <div class="panel-head"><h2>Backtest</h2><button class="btn sm" id="btBtn" type="button">Lancer le backtest</button></div>
+    <div class="small muted" id="btNote" style="max-width:75ch">Rejoue les règles sur l'historique disponible, bougie par bougie, et compare deux variantes : toutes les entrées, ou seulement celles dans le sens de la tendance de fond. Résultats en R (1 R = le risque d'un trade).</div>
+    <div class="btwrap" id="btOut"></div>
+  </section>
 
   <footer>Graphique, calendrier et news : widgets TradingView. Canal Telegram : aperçu public du canal. Signaux calculés par règles sur les bougies de biquote.io, indicatifs et sans garantie de résultat ; ce n'est pas un conseil en investissement.</footer>
 </div>
@@ -288,7 +317,8 @@ function placeBands(){requestAnimationFrame(placeBands);if(!chart)return;const b
 
 /* ---------- Rendu ---------- */
 function recompute(){const cfg=TFS[state.tf];
-  state.an=state.ltf.length?analyze(state.ltf,state.htf,Date.now(),state.events.filter(e=>e.exact),{ltf:cfg.ltfL,htf:cfg.htfL}):null;
+  state.an=state.ltf.length?analyze(state.ltf,state.htf,Date.now(),state.events.filter(e=>e.exact),{ltf:cfg.ltfL,htf:cfg.htfL},{trendOnly:$("trendOnly").checked}):null;
+  trackTrades();
   renderQuote();renderSignal();drawChart();$("levelsMsg").hidden=state.ltf.length>0}
 function renderQuote(){const c=state.ltf;if(!c.length){$("price").textContent="—";$("chg").textContent="";return}
   const last=c[c.length-1];$("price").textContent=f2(last.c);let ref=null;for(let i=c.length-1;i>=0;i--){if(c[i].t<=last.t-864e5){ref=c[i];break}}
@@ -314,14 +344,17 @@ const lotsFor=dist=>{const v=+$("riskUsd").value;return v>0?(v/(dist*100)).toFix
 function ideas(){const an=state.an;if(!an)return[];if(an.plan)return[Object.assign({active:true,atMarket:true,basis:"Signal validé par la confluence des critères ci-dessous"},an.plan)];return an.scenarios.map(s=>Object.assign({active:false},s))}
 function selIdea(){const l=ideas();if(!l.length)return null;return l.find(i=>i.dir===state.sel)||l.find(i=>i.dir===(state.an.L>=state.an.S?1:-1))||l[0]}
 function renderIdeas(){const box=$("ideas"),l=ideas(),cur=selIdea(),an=state.an;box.textContent="";
-  l.forEach(s=>{const b=el("button","idea "+(s.dir===1?"b":"s"));b.type="button";b.setAttribute("aria-pressed",s===cur||(cur&&s.dir===cur.dir)?"true":"false");
+  l.forEach(s=>{const b=el("div","idea "+(s.dir===1?"b":"s"));b.setAttribute("role","button");b.tabIndex=0;b.setAttribute("aria-pressed",s===cur||(cur&&s.dir===cur.dir)?"true":"false");
     const hd=el("div","hd");hd.appendChild(el("span","dir",s.dir===1?"ACHAT":"VENTE"));const gap=Math.abs(s.entry-an.price);
     hd.appendChild(el("span","st"+(s.active?" on":""),s.active?"Signal actif, entrée au prix actuel":s.atMarket?"Prix déjà sur le niveau, signal pas encore validé":"En attente : le prix doit "+(s.dir===1?"redescendre":"remonter")+" de "+f2(gap)+" $"));b.appendChild(hd);
     const en=el("div","en");en.appendChild(el("span","muted","Entrée"));en.appendChild(el("b",null,f2(s.entry)));b.appendChild(en);
     const lv=el("div","lv"),cell=(cls,name,price,delta)=>{const d=el("div",cls);d.appendChild(el("small",null,name));d.appendChild(el("b",null,f2(price)));d.appendChild(el("i",null,delta));lv.appendChild(d)};
     cell("sl","Stop (perte max)",s.sl,"−"+f2(s.dist)+" $");cell("tp","Objectif 1",s.tp1,"+"+f2(Math.abs(s.tp1-s.entry))+" $");cell("tp","Objectif 2",s.tp2,"+"+f2(Math.abs(s.tp2-s.entry))+" $");b.appendChild(lv);
     b.appendChild(el("div","ft","Taille pour ton risque : "+lotsFor(s.dist)+" lot · Gain visé jusqu'à "+s.rr2.toFixed(1).replace(".",",")+" fois le risque · "+s.basis));
-    b.addEventListener("click",()=>{state.sel=s.dir;renderIdeas();drawChart()});box.appendChild(b)});
+    const tk=el("div","take"),dup=trades().some(t=>t.state!=="done"&&t.dir===s.dir&&Math.abs(t.entry-s.entry)<0.05);
+    const go=el("button","btn sm"+(dup?"":" go"),dup?"Déjà dans tes trades":"Je prends ce trade");go.type="button";go.disabled=dup;
+    go.addEventListener("click",ev=>{ev.stopPropagation();takeTrade(s)});tk.appendChild(go);b.appendChild(tk);
+    const pick=()=>{state.sel=s.dir;renderIdeas();drawChart()};b.addEventListener("click",pick);b.addEventListener("keydown",ev=>{if(ev.target===b&&(ev.key==="Enter"||ev.key===" ")){ev.preventDefault();pick()}});box.appendChild(b)});
   $("levelsTxt").textContent=cur?(cur.dir===1?"Achat":"Vente")+" affiché : entrée "+f2(cur.entry)+", zone rouge = risque jusqu'au stop, zone verte = gain jusqu'à l'objectif 2."+(l.length>1?" Clique sur l'autre carte pour voir l'autre sens.":""):"";
   $("zones").hidden=!$("showZones").checked}
 $("riskUsd").addEventListener("input",()=>{renderIdeas();store.set("gd.risk",$("riskUsd").value)});
@@ -332,10 +365,53 @@ async function getJson(url,opts){const r=await fetch(url,opts);const j=await r.j
 async function loadPrices(force){if(document.hidden&&!force)return;const seq=state.seq,tf=state.tf,cfg=TFS[tf];
   try{const needH=force||Date.now()-state.htfAt>3e5;
     const [l,h]=await Promise.all([getJson("/api/candles?tf="+tf),needH?getJson("/api/candles?tf="+cfg.htf).catch(()=>null):null]);
-    if(seq!==state.seq)return;state.ltf=l.candles;state.ltfAt=l.fetchedAt||Date.now();if(h){state.htf=h.candles;state.htfAt=Date.now()}
+    if(seq!==state.seq)return;state.ltf=l.candles;hist(tf,l.candles);state.ltfAt=l.fetchedAt||Date.now();if(h){state.htf=h.candles;hist(cfg.htf,h.candles);state.htfAt=Date.now()}
     feed("live","Prix "+hm(state.ltfAt));recompute()}
   catch(e){if(seq!==state.seq)return;feed("err",state.ltfAt?"Flux interrompu · dernier prix "+hm(state.ltfAt):"Prix indisponibles");if(!state.ltf.length)$("levelsMsg").textContent=e.message+" Nouvel essai automatique."}}
 async function loadCalendar(){try{const j=await getJson("/api/calendar");state.events=j.events||[];renderSession();if(state.ltf.length)recompute()}catch(e){}}
+/* ---------- Journal de trades (enregistré dans ce navigateur) ---------- */
+function trades(){try{const t=JSON.parse(store.get("gd.trades")||"[]");return Array.isArray(t)?t:[]}catch(e){return[]}}
+function saveTrades(t){store.set("gd.trades",JSON.stringify(t.slice(-120)))}
+function takeTrade(s){const an=state.an;if(!an)return;const now=Date.now(),risk=+$("riskUsd").value>0?+$("riskUsd").value:0,live=s.active||s.atMarket,t=trades();
+  t.push({id:now+"-"+Math.round(Math.random()*1e6),dir:s.dir,entry:live?an.price:s.entry,sl:s.sl,tp1:s.tp1,tp2:s.tp2,kind:s.kind||"",basis:s.basis||"",tf:TFS[state.tf].ltfL,createdAt:now,lastT:now,state:live?"open":"pending",filledT:live?now:null,tp1Hit:false,riskUsd:risk,lots:risk?risk/(s.dist*100):0});
+  saveTrades(t);renderIdeas();renderTrades()}
+function trackTrades(){const t=trades();if(!t.length||!state.ltf.length){renderTrades();return}let ch=false;const c=state.ltf,last=c[c.length-1];
+  t.forEach(tr=>{if(tr.state==="done")return;const before=tr.state+tr.tp1Hit;
+    c.forEach((k,i)=>{if(tr.state==="done"||k.t<tr.createdAt||k.t<=tr.lastT)return;stepTrade(tr,k);if(i<c.length-1)tr.lastT=k.t});
+    if(tr.state!=="done")stepTrade(tr,{t:Date.now(),o:last.c,h:last.c,l:last.c,c:last.c});if(before!==tr.state+tr.tp1Hit)ch=true});
+  if(ch){saveTrades(t);renderIdeas()}renderTrades()}
+function closeTrade(id,how){const t=trades(),i=t.findIndex(x=>x.id===id);if(i<0)return;const tr=t[i],p=state.an?state.an.price:null;
+  if(how==="del"||tr.state==="pending")t.splice(i,1);else if(p!=null){const risk=Math.abs(tr.entry-tr.sl);tr.state="done";tr.result="manuel";tr.exit=p;tr.exitT=Date.now();tr.r=risk>0?tr.dir*(p-tr.entry)/risk:0}
+  saveTrades(t);renderIdeas();renderTrades()}
+const fR=r=>(r>=0?"+":"−")+Math.abs(r).toFixed(2).replace(".",",")+" R";
+const fUsd=(r,tr)=>tr.riskUsd?" · "+(r>=0?"+":"−")+f2(Math.abs(r*tr.riskUsd))+" $":"";
+const dt=ms=>new Date(ms).toLocaleString("fr-CH",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+function renderTrades(){const box=$("trList"),t=trades(),p=state.an?state.an.price:null;const live=t.filter(x=>x.state!=="done").reverse(),done=t.filter(x=>x.state==="done").reverse();
+  if(!t.length){box.textContent="";box.appendChild(el("div","small muted","Aucun trade pour l'instant. Clique sur « Je prends ce trade » sur une carte pour le suivre ici."));$("trSum").textContent="";return}
+  box.textContent="";const row=(tr)=>{const d=el("div","tr"),l1=el("div","l1");l1.appendChild(el("span","imp "+(tr.dir===1?"up":"down"),tr.dir===1?"ACHAT":"VENTE"));l1.appendChild(el("b","num",f2(tr.entry)));
+    let st="",cls="";if(tr.state==="pending")st="En attente d'entrée";else if(tr.state==="open"){const risk=Math.abs(tr.entry-tr.sl),r=p!=null&&risk>0?tr.dir*(p-tr.entry)/risk:0;st="En cours · "+fR(r)+fUsd(r,tr)+(tr.tp1Hit?" · objectif 1 touché":"");cls=r>=0?"pos":"neg"}
+    else{st=(tr.result==="tp2"?"Objectif 2 atteint":tr.result==="sl"?"Stop touché":"Clôturé à la main")+" · "+fR(tr.r)+fUsd(tr.r,tr);cls=tr.r>=0?"pos":"neg"}
+    l1.appendChild(el("span","res "+cls,st));const ac=el("div","ac"),btn=(txt,how)=>{const b=el("button","btn sm",txt);b.type="button";b.addEventListener("click",()=>closeTrade(tr.id,how));ac.appendChild(b)};
+    if(tr.state==="pending")btn("Annuler","del");else if(tr.state==="open")btn("Clôturer au prix actuel","close");else btn("Supprimer","del");l1.appendChild(ac);d.appendChild(l1);
+    d.appendChild(el("div","l2","Stop "+f2(tr.sl)+" · Obj. 1 "+f2(tr.tp1)+" · Obj. 2 "+f2(tr.tp2)+(tr.lots?" · "+tr.lots.toFixed(2).replace(".",",")+" lot":"")+" · "+tr.tf+" · pris le "+dt(tr.createdAt)+(tr.state==="done"?" · sorti le "+dt(tr.exitT)+" à "+f2(tr.exit):"")));return d};
+  if(live.length){box.appendChild(el("h3",null,"En cours"));live.forEach(x=>box.appendChild(row(x)))}
+  if(done.length){box.appendChild(el("h3",null,"Terminés"));done.slice(0,30).forEach(x=>box.appendChild(row(x)))}
+  const w=done.filter(x=>x.r>0).length,sr=done.reduce((a,x)=>a+x.r,0),su=done.reduce((a,x)=>a+x.r*(x.riskUsd||0),0);
+  $("trSum").textContent=done.length?done.length+" terminé"+(done.length>1?"s":"")+" · "+w+" gagnant"+(w>1?"s":"")+" · "+fR(sr)+(su?" · "+(su>=0?"+":"−")+f2(Math.abs(su))+" $":""):live.length+" en cours"}
+
+/* ---------- Backtest ---------- */
+function hist(tf,c){let old=[];try{old=JSON.parse(store.get("gd.h."+tf)||"[]")}catch(e){}const m=new Map();(Array.isArray(old)?old:[]).forEach(x=>m.set(x[0],x));
+  c.forEach((x,i)=>{if(i<c.length-1)m.set(x.t,[x.t,x.o,x.h,x.l,x.c])});const all=Array.from(m.values()).sort((x,y)=>x[0]-y[0]).slice(-2500);store.set("gd.h."+tf,JSON.stringify(all));return all.map(x=>({t:x[0],o:x[1],h:x[2],l:x[3],c:x[4]}))}
+$("btBtn").addEventListener("click",async()=>{const out=$("btOut"),btn=$("btBtn");btn.disabled=true;out.textContent="";$("btNote").textContent="Chargement de l'historique…";
+  try{const tfs=["5m","15m","1h","4h","1d"],data={};const got=await Promise.all(tfs.map(tf=>getJson("/api/candles?tf="+tf)));tfs.forEach((tf,i)=>{data[tf]=hist(tf,got[i].candles)});
+    $("btNote").textContent="Calcul en cours…";await new Promise(r=>setTimeout(r,30));
+    const tb=el("table","bt"),hd=el("tr");["Unité","Période testée","Variante","Trades","Gagnants","Obj. 1 touché","Total","Moyenne par trade"].forEach(x=>hd.appendChild(el("th",null,x)));tb.appendChild(hd);let total=0;
+    Object.keys(TFS).forEach(tf=>{const cfg=TFS[tf],L=data[tf],H=data[cfg.htf];if(!L||L.length<100)return;
+      [["Toutes les entrées",{}],["Tendance uniquement",{trendOnly:true}]].forEach((v,vi)=>{const s=summarize(backtest(L,H,{ltf:cfg.ltfL,htf:cfg.htfL},v[1]));total+=s.n;const r=el("tr");
+        const days=(L[L.length-1].t-L[80].t)/864e5;[vi?"":cfg.ltfL,vi?"":(days<1.5?Math.round(days*24)+" h":days.toFixed(1).replace(".",",")+" j"),v[0],String(s.n),s.n?Math.round(s.winRate*100)+" %":"—",s.n?Math.round(s.tp1Rate*100)+" %":"—",s.n?fR(s.sumR):"—",s.n?fR(s.avgR):"—"].forEach((x,ci)=>{const td=el("td",ci>2?"num":null,x);if(ci===6&&s.n)td.classList.add("res",s.sumR>=0?"pos":"neg");r.appendChild(td)});tb.appendChild(r)})});
+    out.appendChild(tb);$("btNote").textContent=total<60?"Attention : seulement "+total+" trades simulés au total. C'est trop peu pour conclure, les chiffres peuvent s'inverser d'un jour à l'autre. L'historique s'allonge à chaque ouverture de l'app, relance le test dans quelques jours.":"Lecture : « Total » additionne gains et pertes en R. Une stratégie qui tient la route garde une moyenne par trade positive sur plusieurs périodes. Un backtest passé ne garantit rien pour la suite."}
+  catch(e){$("btNote").textContent="Backtest impossible : "+e.message}btn.disabled=false});
+
 /* Canal Telegram + avis de Claude sur l'impact pour l'or (mis en cache par message pour ne payer qu'une fois) */
 const IMP={up:"FAVORABLE À L'OR",down:"DÉFAVORABLE À L'OR",flat:"NEUTRE"};
 let tgPosts=[],impBusy=false,impLast=0;
@@ -400,6 +476,7 @@ $("aiBtn").addEventListener("click",async()=>{if(busy)return;const an=state.an,o
   busy=false;$("aiBtn").disabled=false});
 
 /* ---------- Démarrage ---------- */
+$("trendOnly").checked=store.get("gd.trend")!=="0";$("trendOnly").addEventListener("change",()=>{store.set("gd.trend",$("trendOnly").checked?"1":"0");state.sel=null;recompute()});
 $("showZones").checked=store.get("gd.zones")==="1";$("showZones").addEventListener("change",()=>{store.set("gd.zones",$("showZones").checked?"1":"0");$("zones").hidden=!$("showZones").checked;drawChart()});
 initChart();placeBands();if(!chart)$("levelsMsg").textContent="La bibliothèque de graphique n'a pas pu être chargée. Le signal reste calculé.";
 tvChart();tvStatic();renderSession();setTf(state.tf);loadCalendar();loadTelegram();setInterval(loadTelegram,60000);

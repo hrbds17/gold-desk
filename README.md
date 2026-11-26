@@ -28,6 +28,11 @@ Sans ces variables, tout fonctionne sauf la lecture Claude.
 
 `npm test` vérifie le moteur et les fonctions avec des données simulées.
 
+## Journal et backtest
+
+- « Je prends ce trade » sur une carte l'ajoute à « Mes trades ». L'app suit ensuite l'entrée, le stop et les objectifs avec les bougies. Le journal est enregistré dans le navigateur : il n'est pas partagé entre tes appareils.
+- « Lancer le backtest » rejoue les règles sur l'historique disponible et compare « toutes les entrées » à « tendance uniquement ». L'historique est court au départ et s'allonge à chaque ouverture de l'app.
+
 ## Limites
 
 - Les signaux sont indicatifs : règles fixes, non backtestées.
