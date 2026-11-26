@@ -54,11 +54,16 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .main{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(310px,1fr);gap:14px;align-items:start}
 .col{display:flex;flex-direction:column;gap:14px;min-width:0}
 .lower{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px}
-#tg{height:480px;overflow-y:auto}
+#tg{height:440px;overflow-y:auto}
 .tgp{padding:10px 0;border-top:1px solid var(--line);font-size:14px}
 .tgp:first-child{border-top:0}
 .tgp p{margin:4px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
 .tgp a{color:var(--muted);font-size:12.5px}
+.imp{display:inline-block;font-family:var(--mono);font-size:11.5px;font-weight:600;border-radius:5px;padding:2px 8px;margin-right:8px}
+.imp.up{background:var(--up-soft);color:var(--up)} .imp.down{background:var(--down-soft);color:var(--down)} .imp.flat{background:var(--bg);color:var(--muted)}
+.tgp .why{margin:4px 0 0;font-size:13px;color:var(--muted)}
+#tgBar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:8px;font-size:13px}
+#tgCode{width:150px}
 @media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}.col{display:contents}.o1{order:1}.o2{order:2}.o3{order:3}}
 .tv.big{height:min(74vh,760px);min-height:460px} .tv.short{height:480px}
 #tvPanel.max{position:fixed;inset:0;z-index:50;border-radius:0;border:0;display:flex;flex-direction:column;padding:10px}
@@ -196,7 +201,7 @@ footer{font-size:12px;color:var(--muted);padding:2px 2px 10px}
   <div class="lower">
     <section class="panel" aria-label="Calendrier économique"><div class="panel-head"><h2>Calendrier économique</h2></div><div class="tv short" id="tvCal"></div></section>
     <section class="panel" aria-label="News"><div class="panel-head"><h2>News du moment</h2></div><div class="tv short" id="tvNews"></div></section>
-    <section class="panel" aria-label="Canal Telegram"><div class="panel-head"><h2>Canal Telegram</h2><span class="small muted" id="tgName"></span></div><div id="tg"><div class="small muted">Chargement du canal…</div></div></section>
+    <section class="panel" aria-label="Canal Telegram"><div class="panel-head"><h2>Canal Telegram</h2><span class="small muted" id="tgName"></span></div><div id="tgBar" hidden><button class="btn sm" id="tgBtn" type="button">Analyser l'impact sur l'or avec Claude</button><span id="tgCodeBox" hidden><label for="tgCode" class="small muted">Code d'accès </label><input id="tgCode" type="password" autocomplete="off"></span><span class="muted" id="tgSum"></span></div><div id="tg"><div class="small muted">Chargement du canal…</div></div></section>
   </div>
 
   <footer>Graphique, calendrier et news : widgets TradingView. Canal Telegram : aperçu public du canal. Signaux calculés par règles sur les bougies de biquote.io, indicatifs et sans garantie de résultat ; ce n'est pas un conseil en investissement.</footer>
@@ -319,12 +324,29 @@ async function loadPrices(force){if(document.hidden&&!force)return;const seq=sta
     feed("live","Prix "+hm(state.ltfAt));recompute()}
   catch(e){if(seq!==state.seq)return;feed("err",state.ltfAt?"Flux interrompu · dernier prix "+hm(state.ltfAt):"Prix indisponibles");if(!state.ltf.length)$("levelsMsg").textContent=e.message+" Nouvel essai automatique."}}
 async function loadCalendar(){try{const j=await getJson("/api/calendar");state.events=j.events||[];renderSession();if(state.ltf.length)recompute()}catch(e){}}
-async function loadTelegram(){if(document.hidden)return;const box=$("tg");
-  try{const j=await getJson("/api/telegram");$("tgName").textContent="@"+j.channel;box.textContent="";
-    j.posts.forEach(p=>{const d=el("div","tgp");const a=el("a",null,new Date(p.t).toLocaleString("fr-CH",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})+" · ouvrir dans Telegram");
-      if(typeof p.url==="string"&&p.url.indexOf("https://t.me/")===0){a.href=p.url;a.rel="noopener";a.target="_blank"}d.appendChild(a);
-      d.appendChild(el("p",null,p.text||(p.media?"[Image ou vidéo, à voir dans Telegram]":"")));box.appendChild(d)})}
-  catch(e){if(!box.querySelector(".tgp")){box.textContent="";box.appendChild(el("div","small muted",e.message))}}}
+/* Canal Telegram + avis de Claude sur l'impact pour l'or (mis en cache par message pour ne payer qu'une fois) */
+const IMP={up:"FAVORABLE À L'OR",down:"DÉFAVORABLE À L'OR",flat:"NEUTRE"};
+let tgPosts=[],impBusy=false,impLast=0;
+const impCache=()=>{try{return JSON.parse(store.get("gd.imp")||"{}")||{}}catch(e){return{}}};
+function renderTelegram(){const box=$("tg"),c=impCache();box.textContent="";let n={up:0,down:0,flat:0},seen=0;
+  tgPosts.forEach(p=>{const d=el("div","tgp"),i=c[p.id];if(i&&IMP[i.impact]){d.appendChild(el("span","imp "+i.impact,IMP[i.impact]));n[i.impact]++;seen++}
+    const a=el("a",null,new Date(p.t).toLocaleString("fr-CH",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})+" · ouvrir dans Telegram");
+    if(typeof p.url==="string"&&p.url.indexOf("https://t.me/")===0){a.href=p.url;a.rel="noopener";a.target="_blank"}d.appendChild(a);
+    d.appendChild(el("p",null,p.text||(p.media?"[Image ou vidéo, à voir dans Telegram]":"")));if(i&&i.reason)d.appendChild(el("div","why","Avis de Claude : "+i.reason));box.appendChild(d)});
+  $("tgBar").hidden=!tgPosts.length;$("tgBtn").hidden=!missing().length;
+  $("tgSum").textContent=seen?"Avis de Claude sur "+seen+" message"+(seen>1?"s":"")+" : "+n.up+" favorable"+(n.up>1?"s":"")+" à l'or, "+n.down+" défavorable"+(n.down>1?"s":"")+", "+n.flat+" neutre"+(n.flat>1?"s":"")+".":""}
+const missing=()=>{const c=impCache();return tgPosts.filter(p=>p.text&&!c[p.id]).map(p=>p.id)};
+async function analyseImpact(manual){const ids=missing();if(impBusy||!ids.length)return;const code=$("tgCode").value||store.get("gd.code")||"";
+  if(!code){if(manual){$("tgCodeBox").hidden=false;$("tgCode").focus();$("tgSum").textContent="Saisis ton code d'accès, puis clique à nouveau."}return}
+  if(!manual&&Date.now()-impLast<120000)return;impBusy=true;impLast=Date.now();$("tgBtn").disabled=true;if(manual)$("tgSum").textContent="Analyse en cours…";
+  try{const j=await getJson("/api/impact",{method:"POST",headers:{"content-type":"application/json","x-desk-code":code},body:JSON.stringify({ids})});
+    const c=impCache(),keep={};Object.assign(c,j.impacts||{});tgPosts.forEach(p=>{if(c[p.id])keep[p.id]=c[p.id]});store.set("gd.imp",JSON.stringify(keep));store.set("gd.code",code);$("tgCodeBox").hidden=true;renderTelegram()}
+  catch(e){$("tgSum").textContent=e.message;if(/code/i.test(e.message)){store.set("gd.code","");$("tgCodeBox").hidden=false}}
+  impBusy=false;$("tgBtn").disabled=false}
+async function loadTelegram(){if(document.hidden)return;
+  try{const j=await getJson("/api/telegram");$("tgName").textContent="@"+j.channel;tgPosts=j.posts||[];renderTelegram();analyseImpact(false)}
+  catch(e){if(!tgPosts.length){$("tg").textContent="";$("tg").appendChild(el("div","small muted",e.message))}}}
+$("tgBtn").addEventListener("click",()=>analyseImpact(true));
 function setTf(tf){state.sel=null;state.tf=tf;state.seq++;state.ltf=[];state.htf=[];state.ltfAt=null;state.htfAt=0;state.fit=true;store.set("gd.tf",tf);
   $("tfLabel").textContent=TFS[tf].ltfL;document.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tf===tf?"true":"false"));
   $("levelsMsg").textContent="Chargement des bougies…";feed("wait","Chargement "+TFS[tf].ltfL+"…");recompute();loadPrices(true)}

@@ -25,19 +25,31 @@ function parse(html) {
   return out.sort((a, b) => Date.parse(b.t) - Date.parse(a.t)).slice(0, 15);
 }
 
-module.exports = async function handler(req, res) {
+// Lève une Error au message affichable si le canal n'est pas configuré ou pas lisible.
+async function fetchPosts() {
   const ch = String(process.env.TELEGRAM_CHANNEL || "").replace(/^@/, "").trim();
-  if (!ch) return res.status(503).json({ error: "Ajoute la variable TELEGRAM_CHANNEL (nom du canal, sans @) dans Vercel, puis redéploie.", posts: [] });
-  if (!/^[A-Za-z0-9_]{4,32}$/.test(ch)) return res.status(503).json({ error: "TELEGRAM_CHANNEL n'est pas un nom de canal valide.", posts: [] });
+  if (!ch) { const e = new Error("Ajoute la variable TELEGRAM_CHANNEL (nom du canal, sans @) dans Vercel, puis redéploie."); e.status = 503; throw e; }
+  if (!/^[A-Za-z0-9_]{4,32}$/.test(ch)) { const e = new Error("TELEGRAM_CHANNEL n'est pas un nom de canal valide."); e.status = 503; throw e; }
+  let html;
   try {
     const r = await fetch("https://t.me/s/" + ch, { headers: { accept: "text/html", "accept-language": "fr,en;q=0.8" }, signal: AbortSignal.timeout(8000) });
     if (!r.ok) throw new Error("t.me " + r.status);
-    const posts = parse(await r.text());
-    if (!posts.length) return res.status(502).json({ error: "Aucun message lisible. Le canal doit être public, avec l'aperçu web activé.", posts: [] });
+    html = await r.text();
+  } catch (e) { const err = new Error("Telegram injoignable pour l'instant."); err.status = 502; throw err; }
+  const posts = parse(html);
+  if (!posts.length) { const e = new Error("Aucun message lisible. Le canal doit être public, avec l'aperçu web activé."); e.status = 502; throw e; }
+  posts.channel = ch;
+  return posts;
+}
+
+module.exports = async function handler(req, res) {
+  try {
+    const posts = await fetchPosts();
     res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
-    res.status(200).json({ channel: ch, posts });
+    res.status(200).json({ channel: posts.channel, posts });
   } catch (e) {
-    res.status(502).json({ error: "Telegram injoignable pour l'instant.", posts: [] });
+    res.status(e.status || 502).json({ error: e.message, posts: [] });
   }
 };
 module.exports.parse = parse;
+module.exports.fetchPosts = fetchPosts;

@@ -10,6 +10,7 @@ Dashboard perso pour l'or : graphique, calendrier économique et news via les wi
 - `api/calendar.js` : prochaines annonces US à fort impact, pour bloquer les signaux juste avant une annonce.
 - `api/analyse.js` : appel à l'API Claude.
 - `api/telegram.js` : derniers messages d'un canal Telegram public.
+- `api/impact.js` : Claude lit ces messages et indique si chaque info est favorable ou non à l'or.
 
 ## Déploiement sur Vercel
 

@@ -67,7 +67,7 @@ function res() { return { code: 0, body: null, headers: {}, status(c) { this.cod
   const bodies = [];
   global.fetch = async (url, o) => { const bb = JSON.parse(o.body); bodies.push(bb); return bb.thinking ? { ok: false, status: 400, json: async () => ({ error: { message: "thinking" } }) } : { ok: true, status: 200, json: async () => ({ content: [{ type: "thinking", thinking: "x" }, { type: "text", text: "OK2" }] }) }; };
   r = res(); await analyse({ method: "POST", headers: { "x-desk-code": "abc123" }, body: { state: { prix: 1 } } }, r);
-  assert.strictEqual(r.body.text, "OK2"); assert.strictEqual(bodies.length, 2); assert.strictEqual(bodies[1].max_tokens, 6000); assert(!("thinking" in bodies[1]));
+  assert.strictEqual(r.body.text, "OK2"); assert.strictEqual(bodies.length, 2); assert.strictEqual(bodies[1].max_tokens, 6200); assert(!("thinking" in bodies[1]));
   // /api/telegram
   const page = '<div class="tgme_widget_message_wrap js-widget_message_wrap"><div class="tgme_widget_message" data-post="goldnews/41"><div class="tgme_widget_message_text js-message_text" dir="auto">Gold &amp; USD<br/>Fed <b>hike</b> priced &#33;</div><a class="tgme_widget_message_date" href="https://t.me/goldnews/41"><time datetime="2026-11-26T08:00:00+00:00" class="time">08:00</time></a></div></div>'
     + '<div class="tgme_widget_message_wrap js-widget_message_wrap"><div class="tgme_widget_message" data-post="goldnews/42"><a class="tgme_widget_message_photo_wrap"></a><a class="tgme_widget_message_date"><time datetime="2026-11-26T09:00:00+00:00">09:00</time></a></div></div>';
@@ -79,6 +79,22 @@ function res() { return { code: 0, body: null, headers: {}, status(c) { this.cod
   assert.strictEqual(r.body.posts[0].id, "goldnews/42"); assert.strictEqual(r.body.posts[0].media, true);
   assert.strictEqual(r.body.posts[1].text, "Gold & USD\nFed hike priced !"); assert.strictEqual(r.body.posts[1].url, "https://t.me/goldnews/41");
   global.fetch = async () => ({ ok: true, text: async () => "<html>rien</html>" }); r = res(); await telegram({}, r); assert.strictEqual(r.code, 502);
+  // /api/impact : Claude classe les messages, la sortie est validée
+  const impact = require("../api/impact.js");
+  process.env.TELEGRAM_CHANNEL = "goldnews";
+  let claudeBody = null;
+  global.fetch = async (url, o) => {
+    if (String(url).startsWith("https://t.me/")) return { ok: true, text: async () => page };
+    claudeBody = JSON.parse(o.body);
+    return { ok: true, status: 200, json: async () => ({ content: [{ type: "text", text: 'Voici :\n[{"n":1,"impact":"Baissier","raison":"Hausse de taux attendue, dollar soutenu."},{"n":2,"impact":"achète tout","raison":"x"},{"n":9,"impact":"haussier","raison":"hors liste"}]' }] }) };
+  };
+  r = res(); await impact({ method: "POST", headers: { "x-desk-code": "nope" }, body: {} }, r); assert.strictEqual(r.code, 401);
+  r = res(); await impact({ method: "POST", headers: { "x-desk-code": "abc123" }, body: { ids: ["goldnews/41", "goldnews/42", "autre/1"] } }, r);
+  assert.strictEqual(r.code, 200); assert.deepStrictEqual(Object.keys(r.body.impacts), ["goldnews/41"]);
+  assert.strictEqual(r.body.impacts["goldnews/41"].impact, "down");
+  const sentPosts = JSON.parse(claudeBody.messages[0].content); assert.strictEqual(sentPosts.length, 1); assert.strictEqual(sentPosts[0].texte, "Gold & USD\nFed hike priced !");
+  global.fetch = async (url) => String(url).startsWith("https://t.me/") ? { ok: true, text: async () => page } : { ok: true, status: 200, json: async () => ({ content: [{ type: "text", text: "pas du json" }] }) };
+  r = res(); await impact({ method: "POST", headers: { "x-desk-code": "abc123" }, body: {} }, r); assert.strictEqual(r.code, 502);
   global.fetch = realFetch;
   console.log("OK", seen, "scénarios:", nScen);
 })().catch((e) => { console.error("ECHEC", e); process.exit(1); });
