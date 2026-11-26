@@ -58,7 +58,16 @@ function res() { return { code: 0, body: null, headers: {}, status(c) { this.cod
   r = res(); await analyse({ method: "POST", headers: { "x-desk-code": "abc123" }, body: JSON.stringify({ state: { prix: 3566.5 } }) }, r);
   assert.strictEqual(r.code, 200); assert.strictEqual(r.body.text, "Lecture test");
   assert.strictEqual(sent.url, "https://api.anthropic.com/v1/messages"); assert.strictEqual(sent.o.headers["x-api-key"], "test-key");
-  const b = JSON.parse(sent.o.body); assert.strictEqual(b.model, "claude-haiku-5-5"); assert.strictEqual(b.max_tokens, 500);
+  const b = JSON.parse(sent.o.body); assert.strictEqual(b.model, "claude-haiku-5-5"); assert.strictEqual(b.max_tokens, 1200); assert.deepStrictEqual(b.thinking, { type: "disabled" });
+  // réponse sans texte (réflexion seule) : erreur explicite, plus de « Réponse vide »
+  global.fetch = async () => ({ ok: true, status: 200, json: async () => ({ stop_reason: "max_tokens", content: [{ type: "thinking", thinking: "..." }] }) });
+  r = res(); await analyse({ method: "POST", headers: { "x-desk-code": "abc123" }, body: { state: { prix: 1 } } }, r);
+  assert.strictEqual(r.code, 502); assert(/coupée/.test(r.body.error));
+  // modèle qui refuse thinking désactivé : second appel sans ce réglage
+  const bodies = [];
+  global.fetch = async (url, o) => { const bb = JSON.parse(o.body); bodies.push(bb); return bb.thinking ? { ok: false, status: 400, json: async () => ({ error: { message: "thinking" } }) } : { ok: true, status: 200, json: async () => ({ content: [{ type: "thinking", thinking: "x" }, { type: "text", text: "OK2" }] }) }; };
+  r = res(); await analyse({ method: "POST", headers: { "x-desk-code": "abc123" }, body: { state: { prix: 1 } } }, r);
+  assert.strictEqual(r.body.text, "OK2"); assert.strictEqual(bodies.length, 2); assert.strictEqual(bodies[1].max_tokens, 6000); assert(!("thinking" in bodies[1]));
   // /api/telegram
   const page = '<div class="tgme_widget_message_wrap js-widget_message_wrap"><div class="tgme_widget_message" data-post="goldnews/41"><div class="tgme_widget_message_text js-message_text" dir="auto">Gold &amp; USD<br/>Fed <b>hike</b> priced &#33;</div><a class="tgme_widget_message_date" href="https://t.me/goldnews/41"><time datetime="2026-11-26T08:00:00+00:00" class="time">08:00</time></a></div></div>'
     + '<div class="tgme_widget_message_wrap js-widget_message_wrap"><div class="tgme_widget_message" data-post="goldnews/42"><a class="tgme_widget_message_photo_wrap"></a><a class="tgme_widget_message_date"><time datetime="2026-11-26T09:00:00+00:00">09:00</time></a></div></div>';

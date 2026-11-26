@@ -28,18 +28,21 @@ module.exports = async function handler(req, res) {
   const payload = JSON.stringify(state);
   if (payload.length > 8000) return res.status(413).json({ error: "État trop volumineux." });
 
+  // Sur les modèles récents la réflexion est active par défaut et compte dans max_tokens :
+  // on la coupe pour cette lecture courte, et si le modèle refuse ce réglage on relance avec une marge large.
+  const call = (extra) => fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify(Object.assign({
+      model: process.env.CLAUDE_MODEL || "claude-haiku-5-5",
+      system: SYSTEM,
+      messages: [{ role: "user", content: payload }],
+    }, extra)),
+    signal: AbortSignal.timeout(25000),
+  });
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
-        model: process.env.CLAUDE_MODEL || "claude-haiku-5-5",
-        max_tokens: 500,
-        system: SYSTEM,
-        messages: [{ role: "user", content: payload }],
-      }),
-      signal: AbortSignal.timeout(25000),
-    });
+    let r = await call({ max_tokens: 1200, thinking: { type: "disabled" } });
+    if (r.status === 400) r = await call({ max_tokens: 6000 });
     const j = await r.json().catch(() => null);
     if (!r.ok) {
       const msg = j && j.error && j.error.message ? j.error.message : "erreur " + r.status;
@@ -47,7 +50,13 @@ module.exports = async function handler(req, res) {
     }
     const text = (j && Array.isArray(j.content) ? j.content : []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
     res.setHeader("Cache-Control", "no-store");
-    res.status(200).json({ text: text || "Réponse vide." });
+    if (!text) {
+      const why = j && j.stop_reason === "refusal" ? "Claude a décliné cette demande."
+        : j && j.stop_reason === "max_tokens" ? "La réponse a été coupée avant le texte (limite de longueur atteinte)."
+        : "Claude n'a renvoyé aucun texte (arrêt : " + (j && j.stop_reason ? j.stop_reason : "inconnu") + ").";
+      return res.status(502).json({ error: why + " Réessaie." });
+    }
+    res.status(200).json({ text });
   } catch (e) {
     res.status(502).json({ error: "L'API Claude n'a pas répondu à temps." });
   }
