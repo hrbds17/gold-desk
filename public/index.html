@@ -62,6 +62,15 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .imp{display:inline-block;font-family:var(--mono);font-size:11.5px;font-weight:600;border-radius:5px;padding:2px 8px;margin-right:8px}
 .imp.up{background:var(--up-soft);color:var(--up)} .imp.down{background:var(--down-soft);color:var(--down)} .imp.flat{background:var(--bg);color:var(--muted)}
 .tgp .why{margin:4px 0 0;font-size:13px;color:var(--muted)}
+#alerts{position:sticky;top:8px;z-index:40;display:flex;flex-direction:column;gap:8px}
+#alerts:empty{display:none}
+.alert{display:flex;gap:12px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:10px;padding:10px 12px;box-shadow:0 6px 18px rgba(0,0,0,.14)}
+.alert.a-up{border-left-color:var(--up)} .alert.a-down{border-left-color:var(--down)}
+.alert .bd{flex:1;min-width:0}
+.alert .tx{margin:4px 0 0;font-weight:500;overflow-wrap:anywhere}
+.alert .why{margin:3px 0 0;font-size:13px;color:var(--muted)}
+.alert .ac{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.imp.watch{background:var(--warn-soft);color:var(--warn)}
 #tgBar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:8px;font-size:13px}
 #tgCode{width:150px}
 @media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}.col{display:contents}.o1{order:1}.o2{order:2}.o3{order:3}}
@@ -149,6 +158,7 @@ footer{font-size:12px;color:var(--muted);padding:2px 2px 10px}
       <span class="chip" id="session">Session —</span>
       <span class="chip" id="nextEv" hidden></span>
       <span class="chip"><span class="dot wait" id="feedDot"></span><span id="feedTxt">Chargement des prix…</span></span>
+      <button class="btn sm" id="notifBtn" type="button" hidden>Activer les notifications</button>
       <span class="small muted">Signal sur</span><div class="seg" role="group" aria-label="Unité de temps du signal">
         <button type="button" data-tf="5m" aria-pressed="false">M5</button>
         <button type="button" data-tf="15m" aria-pressed="true">M15</button>
@@ -156,6 +166,8 @@ footer{font-size:12px;color:var(--muted);padding:2px 2px 10px}
       </div>
     </div>
   </header>
+
+  <div id="alerts" aria-live="polite"></div>
 
   <section class="panel" id="tvPanel" aria-label="Graphique TradingView">
     <div class="panel-head"><h2>Graphique</h2><button class="btn sm" id="maxBtn" type="button">Agrandir</button></div>
@@ -333,17 +345,38 @@ function renderTelegram(){const box=$("tg"),c=impCache();box.textContent="";let 
     const a=el("a",null,new Date(p.t).toLocaleString("fr-CH",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})+" · ouvrir dans Telegram");
     if(typeof p.url==="string"&&p.url.indexOf("https://t.me/")===0){a.href=p.url;a.rel="noopener";a.target="_blank"}d.appendChild(a);
     d.appendChild(el("p",null,p.text||(p.media?"[Image ou vidéo, à voir dans Telegram]":"")));if(i&&i.reason)d.appendChild(el("div","why","Avis de Claude : "+i.reason));box.appendChild(d)});
-  $("tgBar").hidden=!tgPosts.length;$("tgBtn").hidden=!missing().length;
+  renderAlerts();$("tgBar").hidden=!tgPosts.length;$("tgBtn").hidden=!missing().length;
   $("tgSum").textContent=seen?"Avis de Claude sur "+seen+" message"+(seen>1?"s":"")+" : "+n.up+" favorable"+(n.up>1?"s":"")+" à l'or, "+n.down+" défavorable"+(n.down>1?"s":"")+", "+n.flat+" neutre"+(n.flat>1?"s":"")+".":""}
+/* Alertes en haut de page : news récente (moins de 90 min) jugée favorable ou défavorable à l'or */
+const KW=/(\bor\b|gold|xau|\bfed\b|fomc|powell|taux|inflation|\bcpi\b|\bpce\b|\bnfp\b|emploi|dollar|dxy|rendement|treasur|géopolit|guerre|frappe|attaque|sanction|iran|ormuz|hormuz|tarif|douane)/i;
+const ALBL={up:"NEWS FAVORABLE À L'OR",down:"NEWS DÉFAVORABLE À L'OR",watch:"NEWS À SURVEILLER"};
+const alerted=new Set();let armed=false;setTimeout(()=>{armed=true},20000);
+const dismissed=()=>{try{const d=JSON.parse(store.get("gd.dis")||"[]");return Array.isArray(d)?d:[]}catch(e){return[]}};
+const canNotify=()=>"Notification" in window&&Notification.permission==="granted";
+function renderAlerts(){const box=$("alerts"),c=impCache(),d=dismissed(),now=Date.now(),hasCode=!!store.get("gd.code");box.textContent="";
+  const list=tgPosts.filter(p=>p.text&&now-Date.parse(p.t)<54e5&&d.indexOf(p.id)<0).map(p=>{const i=c[p.id];
+    if(i)return i.impact==="up"||i.impact==="down"?{p,k:i.impact,why:i.reason}:null;return !hasCode&&KW.test(p.text)?{p,k:"watch",why:""}:null}).filter(Boolean).slice(0,3);
+  list.forEach(a=>{const row=el("div","alert a-"+a.k),bd=el("div","bd"),top=el("div");top.appendChild(el("span","imp "+a.k,ALBL[a.k]));
+    top.appendChild(el("span","small muted",new Date(a.p.t).toLocaleTimeString("fr-CH",{hour:"2-digit",minute:"2-digit"})+" · Telegram"));bd.appendChild(top);
+    bd.appendChild(el("p","tx",a.p.text.length>320?a.p.text.slice(0,320)+"…":a.p.text));if(a.why)bd.appendChild(el("p","why","Avis de Claude : "+a.why));row.appendChild(bd);
+    const ac=el("div","ac"),see=el("button","btn sm","Voir le canal"),x=el("button","btn sm","Fermer");see.type=x.type="button";
+    see.addEventListener("click",()=>$("tg").scrollIntoView({behavior:"smooth",block:"center"}));
+    x.addEventListener("click",()=>{const dd=dismissed();dd.push(a.p.id);store.set("gd.dis",JSON.stringify(dd.slice(-60)));renderAlerts()});
+    ac.appendChild(see);ac.appendChild(x);row.appendChild(ac);box.appendChild(row)});
+  document.title=(list.length?"("+list.length+") ":"")+"Gold Desk XAUUSD";
+  const fresh=list.filter(a=>!alerted.has(a.p.id));fresh.forEach(a=>alerted.add(a.p.id));
+  if(armed&&fresh.length&&canNotify()){try{new Notification("Gold Desk · "+ALBL[fresh[0].k],{body:fresh[0].p.text.slice(0,180),tag:fresh[0].p.id})}catch(e){}}}
+if("Notification" in window&&Notification.permission==="default"){$("notifBtn").hidden=false;
+  $("notifBtn").addEventListener("click",()=>{try{Promise.resolve(Notification.requestPermission()).then(()=>{$("notifBtn").hidden=Notification.permission!=="default"})}catch(e){$("notifBtn").hidden=true}})}
 const missing=()=>{const c=impCache();return tgPosts.filter(p=>p.text&&!c[p.id]).map(p=>p.id)};
 async function analyseImpact(manual){const ids=missing();if(impBusy||!ids.length)return;const code=$("tgCode").value||store.get("gd.code")||"";
   if(!code){if(manual){$("tgCodeBox").hidden=false;$("tgCode").focus();$("tgSum").textContent="Saisis ton code d'accès, puis clique à nouveau."}return}
-  if(!manual&&Date.now()-impLast<120000)return;impBusy=true;impLast=Date.now();$("tgBtn").disabled=true;if(manual)$("tgSum").textContent="Analyse en cours…";
+  if(!manual&&Date.now()-impLast<45000)return;impBusy=true;impLast=Date.now();$("tgBtn").disabled=true;if(manual)$("tgSum").textContent="Analyse en cours…";
   try{const j=await getJson("/api/impact",{method:"POST",headers:{"content-type":"application/json","x-desk-code":code},body:JSON.stringify({ids})});
     const c=impCache(),keep={};Object.assign(c,j.impacts||{});tgPosts.forEach(p=>{if(c[p.id])keep[p.id]=c[p.id]});store.set("gd.imp",JSON.stringify(keep));store.set("gd.code",code);$("tgCodeBox").hidden=true;renderTelegram()}
   catch(e){$("tgSum").textContent=e.message;if(/code/i.test(e.message)){store.set("gd.code","");$("tgCodeBox").hidden=false}}
   impBusy=false;$("tgBtn").disabled=false}
-async function loadTelegram(){if(document.hidden)return;
+async function loadTelegram(){if(document.hidden&&!canNotify())return;
   try{const j=await getJson("/api/telegram");$("tgName").textContent="@"+j.channel;tgPosts=j.posts||[];renderTelegram();analyseImpact(false)}
   catch(e){if(!tgPosts.length){$("tg").textContent="";$("tg").appendChild(el("div","small muted",e.message))}}}
 $("tgBtn").addEventListener("click",()=>analyseImpact(true));
