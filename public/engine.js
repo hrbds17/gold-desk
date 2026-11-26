@@ -66,20 +66,30 @@ function analyze(ltf,htf,now,events,labels){
   // garde-fou annonces
   let guard=null;(events||[]).forEach(ev=>{if(ev.impact!=="high")return;const t=Date.parse(ev.t);if(!isFinite(t))return;const d=(t-now)/60000;if(d<=30&&d>=-15&&!guard)guard=ev});
   if(guard&&verdict!=="wait"){verdict="wait";note="Annonce à fort impact toute proche : "+guard.title+"."}
-  // plan
+  // plan actif + scenarios conditionnels
+  function mk(d,entry,cands){
+    const ok=cands.filter(x=>d===1?(x<entry&&entry-x<=3*a):(x>entry&&x-entry<=3*a));
+    let sl=ok.length?(d===1?Math.min.apply(null,ok)-0.25*a:Math.max.apply(null,ok)+0.25*a):entry-d*1.5*a;
+    let dist=Math.abs(entry-sl);if(dist<a){dist=a;sl=entry-d*dist}if(dist>3.5*a){dist=3.5*a;sl=entry-d*dist}
+    const tp1=entry+d*1.5*dist;
+    const liq=(d===1?sw.hi.filter(s=>s.p>=entry+2*dist).sort((x,y)=>x.p-y.p):sw.lo.filter(s=>s.p<=entry-2*dist).sort((x,y)=>y.p-x.p))[0];
+    const tp2=liq?liq.p:entry+d*3*dist;
+    return{dir:d,entry,sl,tp1,tp2,dist,rr1:1.5,rr2:Math.abs(tp2-entry)/dist,tp2Liq:!!liq};
+  }
   let plan=null;const pdir=verdict==="buy"?1:verdict==="sell"?-1:0;
   if(pdir!==0){
     const cands=[];if(sweepRecent&&sweepRecent.dir===pdir)cands.push(sweepRecent.ext);
     const z=pdir===1?inDemand:inSupply;if(z)cands.push(pdir===1?z.lo:z.hi);
     const lastSw=(pdir===1?sw.lo:sw.hi).slice(-1)[0];if(lastSw)cands.push(lastSw.p);
-    const ok=cands.filter(x=>pdir===1?(x<p&&p-x<=3*a):(x>p&&x-p<=3*a));
-    let sl=ok.length?(pdir===1?Math.min.apply(null,ok)-0.25*a:Math.max.apply(null,ok)+0.25*a):p-pdir*1.5*a;
-    let dist=Math.abs(p-sl);if(dist<a){dist=a;sl=p-pdir*dist}if(dist>3.5*a){dist=3.5*a;sl=p-pdir*dist}
-    const tp1=p+pdir*1.5*dist;
-    const liq=(pdir===1?sw.hi.filter(s=>s.p>=p+2*dist).sort((x,y)=>x.p-y.p):sw.lo.filter(s=>s.p<=p-2*dist).sort((x,y)=>y.p-x.p))[0];
-    const tp2=liq?liq.p:p+pdir*3*dist;
-    plan={dir:pdir,entry:p,sl,tp1,tp2,dist,rr1:1.5,rr2:Math.abs(tp2-p)/dist,tp2Liq:!!liq};
+    plan=mk(pdir,p,cands);
   }
-  return{price:p,atr:a,e20,e50,rsi:r,factors:F,L,S,max,verdict,strong,note,plan,demand,supply,sweep:sweepRecent,session:ses,guard};
+  function scen(d){
+    const z=d===1?demand[0]:supply[0];let entry,cands,basis;
+    if(z){entry=d===1?Math.min(z.hi,p):Math.max(z.lo,p);cands=[d===1?z.lo:z.hi];basis=(z.kind==="OB"?"Order block ":"FVG ")+z.lo.toFixed(2)+" \u2013 "+z.hi.toFixed(2)}
+    else{const s=(d===1?sw.lo.filter(x=>x.p<p):sw.hi.filter(x=>x.p>p)).slice(-1)[0];if(!s)return null;entry=s.p;cands=[];basis=(d===1?"Creux ":"Sommet ")+s.p.toFixed(2)+" (liquidit\u00e9)"}
+    const o=mk(d,entry,cands);o.basis=basis;o.atMarket=Math.abs(entry-p)<1e-9;return o;
+  }
+  const scenarios=[scen(1),scen(-1)].filter(Boolean);
+  return{price:p,atr:a,e20,e50,rsi:r,factors:F,L,S,max,verdict,strong,note,plan,scenarios,demand,supply,sweep:sweepRecent,session:ses,guard};
 }
 if(typeof module!=="undefined"){module.exports={analyze,ema,rsi,atr,macd,swings};}

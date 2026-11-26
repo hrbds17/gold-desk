@@ -3,6 +3,7 @@ const { analyze } = require("../public/engine.js");
 const candles = require("../api/candles.js");
 const calendar = require("../api/calendar.js");
 const analyse = require("../api/analyse.js");
+const telegram = require("../api/telegram.js");
 
 function gen(n, step, seed) { let p = 3560, t = Date.now() - n * step, r = seed; const o = [];
   const rnd = () => { r = (r * 16807) % 2147483647; return r / 2147483647 - 0.5; };
@@ -11,13 +12,17 @@ function res() { return { code: 0, body: null, headers: {}, status(c) { this.cod
 
 (async () => {
   // moteur : plans cohérents, tailles d'historique réelles (192 M15, 180 H4)
-  const seen = {};
+  const seen = {}; let nScen = 0;
   for (let s = 1; s <= 300; s++) {
     const a = analyze(gen(192, 9e5, s * 7919), gen(180, 144e5, s * 104729), Date.now(), [], { ltf: "M15", htf: "H4" });
     seen[a.verdict] = (seen[a.verdict] || 0) + 1;
     if (a.plan) { const p = a.plan, d = p.dir;
       assert(d * (p.entry - p.sl) > 0 && d * (p.tp1 - p.entry) > 0 && d * (p.tp2 - p.entry) >= d * (p.tp1 - p.entry) - 1e-9, "plan incohérent");
       assert(p.dist >= a.atr * 0.99 && p.dist <= a.atr * 3.51, "stop hors bornes"); }
+    for (const p of a.scenarios) { const d = p.dir; nScen++;
+      assert(d * (p.entry - p.sl) > 0 && d * (p.tp1 - p.entry) > 0 && d * (p.tp2 - p.entry) >= d * (p.tp1 - p.entry) - 1e-9, "scénario incohérent");
+      assert(d === 1 ? p.entry <= a.price + 1e-9 : p.entry >= a.price - 1e-9, "entrée du mauvais côté du prix");
+      assert(p.dist >= a.atr * 0.99 && p.dist <= a.atr * 3.51 && typeof p.basis === "string"); }
   }
   // garde-fou annonce : jamais de signal 10 min avant une annonce forte
   for (let s = 1; s <= 300; s++) {
@@ -54,6 +59,17 @@ function res() { return { code: 0, body: null, headers: {}, status(c) { this.cod
   assert.strictEqual(r.code, 200); assert.strictEqual(r.body.text, "Lecture test");
   assert.strictEqual(sent.url, "https://api.anthropic.com/v1/messages"); assert.strictEqual(sent.o.headers["x-api-key"], "test-key");
   const b = JSON.parse(sent.o.body); assert.strictEqual(b.model, "claude-haiku-5-5"); assert.strictEqual(b.max_tokens, 500);
+  // /api/telegram
+  const page = '<div class="tgme_widget_message_wrap js-widget_message_wrap"><div class="tgme_widget_message" data-post="goldnews/41"><div class="tgme_widget_message_text js-message_text" dir="auto">Gold &amp; USD<br/>Fed <b>hike</b> priced &#33;</div><a class="tgme_widget_message_date" href="https://t.me/goldnews/41"><time datetime="2026-11-26T08:00:00+00:00" class="time">08:00</time></a></div></div>'
+    + '<div class="tgme_widget_message_wrap js-widget_message_wrap"><div class="tgme_widget_message" data-post="goldnews/42"><a class="tgme_widget_message_photo_wrap"></a><a class="tgme_widget_message_date"><time datetime="2026-11-26T09:00:00+00:00">09:00</time></a></div></div>';
+  delete process.env.TELEGRAM_CHANNEL; r = res(); await telegram({}, r); assert.strictEqual(r.code, 503);
+  process.env.TELEGRAM_CHANNEL = "../etc"; r = res(); await telegram({}, r); assert.strictEqual(r.code, 503);
+  process.env.TELEGRAM_CHANNEL = "@goldnews";
+  global.fetch = async (url) => { assert.strictEqual(url, "https://t.me/s/goldnews"); return { ok: true, text: async () => page }; };
+  r = res(); await telegram({}, r); assert.strictEqual(r.code, 200); assert.strictEqual(r.body.posts.length, 2);
+  assert.strictEqual(r.body.posts[0].id, "goldnews/42"); assert.strictEqual(r.body.posts[0].media, true);
+  assert.strictEqual(r.body.posts[1].text, "Gold & USD\nFed hike priced !"); assert.strictEqual(r.body.posts[1].url, "https://t.me/goldnews/41");
+  global.fetch = async () => ({ ok: true, text: async () => "<html>rien</html>" }); r = res(); await telegram({}, r); assert.strictEqual(r.code, 502);
   global.fetch = realFetch;
-  console.log("OK", seen);
+  console.log("OK", seen, "scénarios:", nScen);
 })().catch((e) => { console.error("ECHEC", e); process.exit(1); });

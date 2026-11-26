@@ -24,6 +24,7 @@
     --up-soft:#143326; --down-soft:#3b1d20; --warn-soft:#3a2a14;}
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
 .wrap{max-width:1360px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:14px}
@@ -50,13 +51,25 @@ h1{font-size:20px;letter-spacing:-.01em} h2{font-size:16px}
 .seg button+button{border-left:1px solid var(--line)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
 button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-.main{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(310px,1fr);gap:14px;align-items:start}
+.main{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(310px,1fr);gap:14px;align-items:start}
 .col{display:flex;flex-direction:column;gap:14px;min-width:0}
-.lower{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
-@media (max-width:900px){.main,.lower{grid-template-columns:minmax(0,1fr)}}
-.tv{height:520px} .tv.short{height:480px}
-#levels{height:260px;position:relative}
-@media (max-width:600px){.tv{height:400px}.price{font-size:26px}}
+.lower{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px}
+#tg{height:480px;overflow-y:auto}
+.tgp{padding:10px 0;border-top:1px solid var(--line);font-size:14px}
+.tgp:first-child{border-top:0}
+.tgp p{margin:4px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.tgp a{color:var(--muted);font-size:12.5px}
+@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
+.tv.big{height:min(74vh,760px);min-height:460px} .tv.short{height:480px}
+#tvPanel.max{position:fixed;inset:0;z-index:50;border-radius:0;border:0;display:flex;flex-direction:column;padding:10px}
+#tvPanel.max .tv.big{flex:1;height:auto;min-height:0}
+body.lock{overflow:hidden}
+.btn.sm{padding:4px 10px;font-size:13px}
+.scen{border:1px solid var(--line);border-left:3px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:13.5px}
+.scen.b{border-left-color:var(--up)} .scen.s{border-left-color:var(--down)}
+.scen b{font-weight:600} .scen .lv{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+#levels{height:340px;position:relative}
+@media (max-width:600px){.tv.big{height:70vh;min-height:380px}.price{font-size:26px}}
 .tradingview-widget-container{height:100%;width:100%}
 .tradingview-widget-container__widget{height:calc(100% - 22px);width:100%}
 .tradingview-widget-copyright{font-size:11.5px;line-height:22px;text-align:right}
@@ -103,7 +116,7 @@ footer{font-size:12px;color:var(--muted);padding:2px 2px 10px}
       <span class="chip" id="session">Session —</span>
       <span class="chip" id="nextEv" hidden></span>
       <span class="chip"><span class="dot wait" id="feedDot"></span><span id="feedTxt">Chargement des prix…</span></span>
-      <div class="seg" role="group" aria-label="Unité de temps">
+      <span class="small muted">Signal sur</span><div class="seg" role="group" aria-label="Unité de temps du signal">
         <button type="button" data-tf="5m" aria-pressed="false">M5</button>
         <button type="button" data-tf="15m" aria-pressed="true">M15</button>
         <button type="button" data-tf="1h" aria-pressed="false">H1</button>
@@ -111,11 +124,15 @@ footer{font-size:12px;color:var(--muted);padding:2px 2px 10px}
     </div>
   </header>
 
+  <section class="panel" id="tvPanel" aria-label="Graphique TradingView">
+    <div class="panel-head"><h2>Graphique</h2><button class="btn sm" id="maxBtn" type="button">Agrandir</button></div>
+    <div class="tv big" id="tvChart"></div>
+  </section>
+
   <div class="main">
     <div class="col">
-      <section class="panel" aria-label="Graphique TradingView"><div class="tv" id="tvChart"></div></section>
       <section class="panel" aria-label="Niveaux du signal">
-        <div class="panel-head"><h2>Niveaux du signal <span id="tfLabel" class="muted">M15</span></h2><span class="small muted">Zones OB / FVG, stop et objectifs calculés par le moteur</span></div>
+        <div class="panel-head"><h2>Niveaux du signal <span id="tfLabel" class="muted">M15</span></h2><span class="small muted">Zones OB / FVG, entrées, stop et objectifs calculés par le moteur</span></div>
         <div id="levels"><div class="msg" id="levelsMsg">Chargement des bougies…</div></div>
         <div class="zones" id="zones"></div>
       </section>
@@ -134,10 +151,11 @@ footer{font-size:12px;color:var(--muted);padding:2px 2px 10px}
         <div class="cell tp"><span id="pTp1Lbl">TP1</span><b id="pTp1">—</b></div>
         <div class="cell tp"><span id="pTp2Lbl">TP2</span><b id="pTp2">—</b></div>
       </div>
+      <div id="scen" hidden><div class="small muted" style="margin:12px 0 6px">Scénarios à surveiller : entrées conditionnelles, pas des signaux actifs.</div><div id="scenList"></div></div>
       <div class="row risk" id="riskRow" hidden>
         <label for="riskUsd">Risque par trade (USD)</label>
         <input id="riskUsd" type="number" min="1" step="10" value="100" inputmode="decimal">
-        <span>Taille : <b class="num" id="lots">—</b> lot</span>
+        <span id="lotsBox">Taille : <b class="num" id="lots">—</b> lot</span>
       </div>
       <ul class="factors" id="factors"></ul>
       <div style="margin-top:14px">
@@ -153,9 +171,10 @@ footer{font-size:12px;color:var(--muted);padding:2px 2px 10px}
   <div class="lower">
     <section class="panel" aria-label="Calendrier économique"><div class="panel-head"><h2>Calendrier économique</h2></div><div class="tv short" id="tvCal"></div></section>
     <section class="panel" aria-label="News"><div class="panel-head"><h2>News du moment</h2></div><div class="tv short" id="tvNews"></div></section>
+    <section class="panel" aria-label="Canal Telegram"><div class="panel-head"><h2>Canal Telegram</h2><span class="small muted" id="tgName"></span></div><div id="tg"><div class="small muted">Chargement du canal…</div></div></section>
   </div>
 
-  <footer>Graphique, calendrier et news : widgets TradingView. Signaux calculés par règles sur les bougies de biquote.io, indicatifs et sans garantie de résultat ; ce n'est pas un conseil en investissement.</footer>
+  <footer>Graphique, calendrier et news : widgets TradingView. Canal Telegram : aperçu public du canal. Signaux calculés par règles sur les bougies de biquote.io, indicatifs et sans garantie de résultat ; ce n'est pas un conseil en investissement.</footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
@@ -180,7 +199,7 @@ function tvWidget(hostId,name,config,linkText){const host=$(hostId);host.textCon
   const box=el("div","tradingview-widget-container");box.appendChild(el("div","tradingview-widget-container__widget"));
   const c=el("div","tradingview-widget-copyright");const a=el("a",null,linkText);a.href="https://fr.tradingview.com/";a.rel="noopener nofollow";a.target="_blank";c.appendChild(a);box.appendChild(c);
   const s=document.createElement("script");s.type="text/javascript";s.async=true;s.src="https://s3.tradingview.com/external-embedding/embed-widget-"+name+".js";s.text=JSON.stringify(config);box.appendChild(s);host.appendChild(box)}
-function tvChart(){tvWidget("tvChart","advanced-chart",{autosize:true,symbol:TV_SYMBOL,interval:TFS[state.tf].tv,timezone:"Europe/Zurich",theme:dark()?"dark":"light",style:"1",locale:"fr",allow_symbol_change:false,hide_side_toolbar:false,calendar:false,studies:["MAExp@tv-basicstudies","RSI@tv-basicstudies"],support_host:"https://www.tradingview.com"},"Graphique XAUUSD par TradingView")}
+function tvChart(){tvWidget("tvChart","advanced-chart",{autosize:true,symbol:TV_SYMBOL,interval:TFS[state.tf].tv,timezone:"Europe/Zurich",theme:dark()?"dark":"light",style:"1",locale:"fr",allow_symbol_change:false,hide_side_toolbar:false,withdateranges:true,details:false,calendar:false,save_image:true,studies:["MAExp@tv-basicstudies","RSI@tv-basicstudies"],support_host:"https://www.tradingview.com"},"Graphique XAUUSD par TradingView")}
 function tvStatic(){const t=dark()?"dark":"light";
   tvWidget("tvCal","events",{colorTheme:t,isTransparent:true,width:"100%",height:"100%",locale:"fr",importanceFilter:"0,1",countryFilter:"us,eu,gb,ch,cn,jp"},"Calendrier économique par TradingView");
   tvWidget("tvNews","timeline",{feedMode:"symbol",symbol:TV_SYMBOL,colorTheme:t,isTransparent:true,displayMode:"regular",width:"100%",height:"100%",locale:"fr"},"Actualités par TradingView")}
@@ -208,6 +227,7 @@ function drawChart(){if(!chart)return;const c=state.ltf,an=state.an;
   an.demand.forEach(z=>{add(z.hi,css("--up"),z.kind+" achat",2);add(z.lo,css("--up"),"",2)});
   an.supply.forEach(z=>{add(z.lo,css("--down"),z.kind+" vente",2);add(z.hi,css("--down"),"",2)});
   if(an.plan){add(an.plan.sl,css("--down"),"Stop",0);add(an.plan.tp1,css("--up"),"TP1",0);add(an.plan.tp2,css("--up"),"TP2",0)}
+  else an.scenarios.forEach(s=>add(s.entry,css("--gold"),s.dir===1?"Entrée achat":"Entrée vente",1));
   sC.setMarkers(an.sweep?[{time:tt(an.sweep.t),position:an.sweep.dir===1?"belowBar":"aboveBar",color:an.sweep.dir===1?css("--up"):css("--down"),shape:an.sweep.dir===1?"arrowUp":"arrowDown",text:"Sweep"}]:[])}
 
 /* ---------- Rendu ---------- */
@@ -222,12 +242,12 @@ function renderSession(){const s=sessionAt(Date.now()),e=$("session");e.textCont
   const m=Math.round((Date.parse(n.t)-Date.now())/60000);c.hidden=false;c.textContent="Prochaine annonce US : "+n.title+" dans "+(m<60?m+" min":m<1440?Math.floor(m/60)+" h":Math.floor(m/1440)+" j")}
 function renderSignal(){const an=state.an,pill=$("pill"),fl=$("factors"),zs=$("zones");fl.textContent="";zs.textContent="";
   if(!an){pill.className="pill none";pill.textContent="EN ATTENTE";$("pillNote").textContent=state.ltf.length?"Historique trop court pour analyser.":"Les prix ne sont pas encore chargés.";
-    $("barL").style.width="0";$("barS").style.width="0";$("scoreL").textContent="—";$("scoreS").textContent="—";$("plan").hidden=true;$("riskRow").hidden=true;$("sigTime").textContent="";return}
+    $("barL").style.width="0";$("barS").style.width="0";$("scoreL").textContent="—";$("scoreS").textContent="—";$("plan").hidden=true;$("riskRow").hidden=true;$("scen").hidden=true;$("sigTime").textContent="";return}
   pill.className="pill "+an.verdict;pill.textContent=an.verdict==="buy"?(an.strong?"ACHAT FORT":"ACHAT"):an.verdict==="sell"?(an.strong?"VENTE FORTE":"VENTE"):"ATTENDRE";$("pillNote").textContent=an.note;
   $("barL").style.width=(an.L/an.max*100).toFixed(0)+"%";$("barS").style.width=(an.S/an.max*100).toFixed(0)+"%";
   $("scoreL").textContent=an.L.toFixed(1)+" / "+an.max.toFixed(1);$("scoreS").textContent=an.S.toFixed(1)+" / "+an.max.toFixed(1);
   $("sigTime").textContent=state.ltfAt?"Calculé sur les prix de "+hm(state.ltfAt):"";
-  const pl=an.plan;$("plan").hidden=!pl;$("riskRow").hidden=!pl;
+  const pl=an.plan;$("plan").hidden=!pl;$("riskRow").hidden=false;$("lotsBox").hidden=!pl;renderScen();
   if(pl){$("pEntry").textContent=f2(pl.entry);$("pSl").textContent=f2(pl.sl);$("pTp1").textContent=f2(pl.tp1);$("pTp2").textContent=f2(pl.tp2);
     $("pSlLbl").textContent="Stop · "+f2(pl.dist)+" $";$("pTp1Lbl").textContent="TP1 · R 1,5";$("pTp2Lbl").textContent="TP2 · R "+pl.rr2.toFixed(1).replace(".",",")+(pl.tp2Liq?" · liquidité":"");renderLots()}
   an.factors.forEach(f=>{const li=el("li"),d=f.both?"both":f.d;
@@ -236,8 +256,15 @@ function renderSignal(){const an=state.an,pill=$("pill"),fl=$("factors"),zs=$("z
   const zl=an.demand.map(z=>({z,c:"d",t:"Demande"})).concat(an.supply.map(z=>({z,c:"s",t:"Offre"})));
   if(!zl.length)zs.appendChild(el("div","small muted","Aucune zone OB / FVG non comblée à proximité."));
   zl.forEach(o=>{const d=el("div","zone "+o.c);d.appendChild(el("div",null,o.t+" · "+o.z.kind));d.appendChild(el("div","num small muted",f2(o.z.lo)+" – "+f2(o.z.hi)));zs.appendChild(d)})}
-function renderLots(){const pl=state.an&&state.an.plan,v=+$("riskUsd").value;$("lots").textContent=pl&&v>0?(v/(pl.dist*100)).toFixed(2).replace(".",","):"—"}
-$("riskUsd").addEventListener("input",()=>{renderLots();store.set("gd.risk",$("riskUsd").value)});
+const lotsFor=dist=>{const v=+$("riskUsd").value;return v>0?(v/(dist*100)).toFixed(2).replace(".",","):"—"};
+function renderLots(){const pl=state.an&&state.an.plan;$("lots").textContent=pl?lotsFor(pl.dist):"—"}
+function renderScen(){const an=state.an,box=$("scen"),list=$("scenList");list.textContent="";const show=an&&!an.plan&&an.scenarios.length>0;box.hidden=!show;if(!show)return;
+  an.scenarios.forEach(s=>{const d=el("div","scen "+(s.dir===1?"b":"s")),t=el("div");
+    t.appendChild(el("b",null,(s.dir===1?"Achat ":"Vente ")+(s.atMarket?"au prix actuel ":"sur retour à ")));t.appendChild(el("b","num",f2(s.entry)));d.appendChild(t);
+    d.appendChild(el("div","small muted",s.basis));const lv=el("div","lv");
+    [["Stop",f2(s.sl)],["TP1",f2(s.tp1)],["TP2",f2(s.tp2)+(s.tp2Liq?" (liquidité)":"")],["R max",s.rr2.toFixed(1).replace(".",",")],["Taille",lotsFor(s.dist)+" lot"]].forEach(x=>lv.appendChild(el("span",null,x[0]+" "+x[1])));
+    d.appendChild(lv);list.appendChild(d)})}
+$("riskUsd").addEventListener("input",()=>{renderLots();renderScen();store.set("gd.risk",$("riskUsd").value)});
 
 /* ---------- Données ---------- */
 function feed(kind,txt){$("feedDot").className="dot "+kind;$("feedTxt").textContent=txt}
@@ -249,9 +276,15 @@ async function loadPrices(force){if(document.hidden&&!force)return;const seq=sta
     feed("live","Prix "+hm(state.ltfAt));recompute()}
   catch(e){if(seq!==state.seq)return;feed("err",state.ltfAt?"Flux interrompu · dernier prix "+hm(state.ltfAt):"Prix indisponibles");if(!state.ltf.length)$("levelsMsg").textContent=e.message+" Nouvel essai automatique."}}
 async function loadCalendar(){try{const j=await getJson("/api/calendar");state.events=j.events||[];renderSession();if(state.ltf.length)recompute()}catch(e){}}
+async function loadTelegram(){if(document.hidden)return;const box=$("tg");
+  try{const j=await getJson("/api/telegram");$("tgName").textContent="@"+j.channel;box.textContent="";
+    j.posts.forEach(p=>{const d=el("div","tgp");const a=el("a",null,new Date(p.t).toLocaleString("fr-CH",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})+" · ouvrir dans Telegram");
+      if(typeof p.url==="string"&&p.url.indexOf("https://t.me/")===0){a.href=p.url;a.rel="noopener";a.target="_blank"}d.appendChild(a);
+      d.appendChild(el("p",null,p.text||(p.media?"[Image ou vidéo, à voir dans Telegram]":"")));box.appendChild(d)})}
+  catch(e){if(!box.querySelector(".tgp")){box.textContent="";box.appendChild(el("div","small muted",e.message))}}}
 function setTf(tf){state.tf=tf;state.seq++;state.ltf=[];state.htf=[];state.ltfAt=null;state.htfAt=0;state.fit=true;store.set("gd.tf",tf);
   $("tfLabel").textContent=TFS[tf].ltfL;document.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tf===tf?"true":"false"));
-  $("levelsMsg").textContent="Chargement des bougies…";feed("wait","Chargement "+TFS[tf].ltfL+"…");recompute();tvChart();loadPrices(true)}
+  $("levelsMsg").textContent="Chargement des bougies…";feed("wait","Chargement "+TFS[tf].ltfL+"…");recompute();loadPrices(true)}
 document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.tf!==state.tf)setTf(b.dataset.tf)}));
 
 /* ---------- Lecture Claude ---------- */
@@ -270,7 +303,10 @@ $("aiBtn").addEventListener("click",async()=>{if(busy)return;const an=state.an,o
 
 /* ---------- Démarrage ---------- */
 initChart();if(!chart)$("levelsMsg").textContent="La bibliothèque de graphique n'a pas pu être chargée. Le signal reste calculé.";
-tvStatic();renderSession();setTf(state.tf);loadCalendar();
+tvChart();tvStatic();renderSession();setTf(state.tf);loadCalendar();loadTelegram();setInterval(loadTelegram,60000);
+function setMax(on){$("tvPanel").classList.toggle("max",on);document.body.classList.toggle("lock",on);$("maxBtn").textContent=on?"Réduire":"Agrandir"}
+$("maxBtn").addEventListener("click",()=>setMax(!$("tvPanel").classList.contains("max")));
+document.addEventListener("keydown",e=>{if(e.key==="Escape")setMax(false)});
 setInterval(loadPrices,30000);setInterval(loadCalendar,3e5);setInterval(renderSession,60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadPrices(true)});
 if(window.matchMedia)matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{chartTheme();drawChart();tvChart();tvStatic()});

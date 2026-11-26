@@ -9,6 +9,7 @@ Dashboard perso pour l'or : graphique, calendrier économique et news via les wi
 - `api/candles.js` : bougies XAUUSD (source : biquote.io, gratuite, sans clé). Pour changer de source, réécrire `fetchBars()`.
 - `api/calendar.js` : prochaines annonces US à fort impact, pour bloquer les signaux juste avant une annonce.
 - `api/analyse.js` : appel à l'API Claude.
+- `api/telegram.js` : derniers messages d'un canal Telegram public.
 
 ## Déploiement sur Vercel
 
@@ -16,6 +17,7 @@ Dashboard perso pour l'or : graphique, calendrier économique et news via les wi
 2. Settings → Environment Variables :
    - `ANTHROPIC_API_KEY` : ta clé API Claude.
    - `DESK_CODE` : un code de ton choix. La page le demande au premier clic sur « Demander une lecture à Claude ». Il empêche quelqu'un d'autre de consommer ta clé.
+   - `TELEGRAM_CHANNEL` (optionnel) : nom du canal Telegram à afficher, sans @. Le canal doit être public.
    - `CLAUDE_MODEL` (optionnel) : par défaut `claude-haiku-5-5`.
 3. Redéployer après avoir ajouté les variables.
 
