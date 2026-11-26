@@ -1,6 +1,7 @@
 // GET /api/telegram
 // Derniers messages d'un canal Telegram PUBLIC, lus sur sa page d'aperçu t.me/s/<canal>.
-// Variable d'environnement Vercel : TELEGRAM_CHANNEL (nom du canal sans @).
+// Canal par défaut ci-dessous ; la variable Vercel TELEGRAM_CHANNEL (nom sans @) permet d'en choisir un autre.
+const DEFAULT_CHANNEL = "actuminuteoff";
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
 function decode(s) {
   return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
@@ -27,7 +28,7 @@ function parse(html) {
 
 // Lève une Error au message affichable si le canal n'est pas configuré ou pas lisible.
 async function fetchPosts() {
-  const ch = String(process.env.TELEGRAM_CHANNEL || "").replace(/^@/, "").trim();
+  const ch = String(process.env.TELEGRAM_CHANNEL || DEFAULT_CHANNEL).replace(/^@/, "").trim();
   if (!ch) { const e = new Error("Ajoute la variable TELEGRAM_CHANNEL (nom du canal, sans @) dans Vercel, puis redéploie."); e.status = 503; throw e; }
   if (!/^[A-Za-z0-9_]{4,32}$/.test(ch)) { const e = new Error("TELEGRAM_CHANNEL n'est pas un nom de canal valide."); e.status = 503; throw e; }
   let html;

@@ -71,7 +71,8 @@ function res() { return { code: 0, body: null, headers: {}, status(c) { this.cod
   // /api/telegram
   const page = '<div class="tgme_widget_message_wrap js-widget_message_wrap"><div class="tgme_widget_message" data-post="goldnews/41"><div class="tgme_widget_message_text js-message_text" dir="auto">Gold &amp; USD<br/>Fed <b>hike</b> priced &#33;</div><a class="tgme_widget_message_date" href="https://t.me/goldnews/41"><time datetime="2026-11-26T08:00:00+00:00" class="time">08:00</time></a></div></div>'
     + '<div class="tgme_widget_message_wrap js-widget_message_wrap"><div class="tgme_widget_message" data-post="goldnews/42"><a class="tgme_widget_message_photo_wrap"></a><a class="tgme_widget_message_date"><time datetime="2026-11-26T09:00:00+00:00">09:00</time></a></div></div>';
-  delete process.env.TELEGRAM_CHANNEL; r = res(); await telegram({}, r); assert.strictEqual(r.code, 503);
+  delete process.env.TELEGRAM_CHANNEL; global.fetch = async (url) => { assert.strictEqual(url, "https://t.me/s/actuminuteoff"); return { ok: true, text: async () => page }; };
+  r = res(); await telegram({}, r); assert.strictEqual(r.code, 200); assert.strictEqual(r.body.channel, "actuminuteoff");
   process.env.TELEGRAM_CHANNEL = "../etc"; r = res(); await telegram({}, r); assert.strictEqual(r.code, 503);
   process.env.TELEGRAM_CHANNEL = "@goldnews";
   global.fetch = async (url) => { assert.strictEqual(url, "https://t.me/s/goldnews"); return { ok: true, text: async () => page }; };
